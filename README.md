@@ -39,6 +39,13 @@ Server functions provide snapshot and refresh operations, archived task metadata
 
 Vite development and preview bind to `127.0.0.1`. Server functions also reject requests whose URL or Host is outside loopback. Run any production server on loopback as well. The app does not send task data to an external service.
 
+The server code is split by responsibility:
+
+- `codex-rpc.ts` owns the app-server process, request lifecycle, and pagination limits. `codex-protocol.ts` parses replies without process state. `codex-client.ts` maps task operations to RPC calls.
+- `local-codex-state.ts` reads the bounded local state file. `task-normalization.ts` combines that state with Codex task and project listings.
+- `archive-policy.ts` checks expected task versions and Automation ID groups. `archive-operations.ts` performs writes and readback. `task-store.ts` owns only the in-memory snapshot and mutation lock.
+- `archive-input.ts` validates write inputs, `local-request.ts` enforces loopback requests, and `functions.ts` exposes the TanStack server functions.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
