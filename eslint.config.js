@@ -7,6 +7,8 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
+import { classOnlyFile } from './eslint-rules/class-only-file.js'
+
 export default tseslint.config(
   {
     ignores: ['.output/**', '.tanstack/**', 'dist/**', 'src/routeTree.gen.ts'],
@@ -38,10 +40,13 @@ export default tseslint.config(
     ],
   },
   {
-    plugins: { perfectionist },
+    plugins: {
+      perfectionist,
+      local: { rules: { 'class-only-file': classOnlyFile } },
+    },
     rules: {
+      'local/class-only-file': 'error',
       complexity: ['error', 10],
-      'max-classes-per-file': ['error', 1],
       'max-depth': ['error', 3],
       'max-lines': [
         'error',

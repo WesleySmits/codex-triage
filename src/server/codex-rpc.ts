@@ -16,10 +16,9 @@ export interface CodexRpcOptions {
   maxItems?: number
 }
 
-const PAGE_SIZE = 200
-
 /** Owns the spawned app-server session, request lifecycle, and pagination limits. */
 export class CodexRpc {
+  private static readonly pageSize = 200
   private child: ChildProcessWithoutNullStreams | null = null
   private pending = new Map<number, Pending>()
   private nextId = 0
@@ -103,7 +102,7 @@ export class CodexRpc {
     for (let pageNumber = 0; pageNumber < this.options.maxPages; pageNumber++) {
       const result = await this.request(method, {
         ...params,
-        limit: PAGE_SIZE,
+        limit: CodexRpc.pageSize,
         ...(cursor ? { cursor } : {}),
       })
       const page = parsePage(result, parseItem)

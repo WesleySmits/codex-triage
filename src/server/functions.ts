@@ -1,11 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import { analysisCache } from './analysis-cache'
+import { analysisCache } from './analysis-cache-instance'
 import { parseAnalysisIds } from './analysis-input'
-import { analysisRunner } from './analysis-runner'
+import { analysisRunner } from './analysis-runner-instance'
 import { parseArchiveGroup, parseExpectedTask } from './archive-input'
 import { assertLocalRequest } from './local-request'
-import { taskStore } from './task-store'
+import { taskStore } from './task-store-instance'
 
 export const getTaskSnapshot = createServerFn({ method: 'GET' }).handler(
   async () => {

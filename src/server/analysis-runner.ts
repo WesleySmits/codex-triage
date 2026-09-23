@@ -1,29 +1,13 @@
-import { analysisCache } from './analysis-cache'
+import { analysisCache } from './analysis-cache-instance'
 import type { Analysis, AnalysisProgress } from './analysis-types'
 import { analyzeWithJev } from './jev-analysis'
-import { taskStore } from './task-store'
+import { taskStore } from './task-store-instance'
 import type { Task } from './task-types'
-
-const BATCH_SIZE = 5
-
-function emptyProgress(): AnalysisProgress {
-  return {
-    status: 'idle',
-    total: 0,
-    completed: 0,
-    analyzed: 0,
-    cached: 0,
-    failed: 0,
-    inputTokens: 0,
-    outputTokens: 0,
-    elapsedMs: 0,
-    lastCompletedId: null,
-  }
-}
 
 /** A single local run, started only by a POST server function. */
 export class AnalysisRunner {
-  private progress = emptyProgress()
+  private static readonly batchSize = 5
+  private progress = AnalysisRunner.emptyProgress()
   private startedAt = 0
   private cancelRequested = false
 
@@ -38,6 +22,21 @@ export class AnalysisRunner {
       apiKey: string,
     ) => Promise<Analysis> = analyzeWithJev,
   ) {}
+
+  private static emptyProgress(): AnalysisProgress {
+    return {
+      status: 'idle',
+      total: 0,
+      completed: 0,
+      analyzed: 0,
+      cached: 0,
+      failed: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      elapsedMs: 0,
+      lastCompletedId: null,
+    }
+  }
 
   status(): { configured: boolean; progress: AnalysisProgress } {
     const elapsedMs =
@@ -55,7 +54,11 @@ export class AnalysisRunner {
       throw new Error('Analysis already running')
     const apiKey = process.env.TYPESAFE_API_KEY?.trim()
     if (!apiKey) throw new Error('TypeSafe API key is not configured')
-    this.progress = { ...emptyProgress(), status: 'running', total: ids.length }
+    this.progress = {
+      ...AnalysisRunner.emptyProgress(),
+      status: 'running',
+      total: ids.length,
+    }
     this.startedAt = performance.now()
     this.cancelRequested = false
     try {
@@ -70,7 +73,7 @@ export class AnalysisRunner {
       )
       return this.status().progress
     } catch (error) {
-      this.progress = emptyProgress()
+      this.progress = AnalysisRunner.emptyProgress()
       throw error
     }
   }
@@ -81,9 +84,13 @@ export class AnalysisRunner {
   }
 
   private async run(tasks: Task[], apiKey: string): Promise<void> {
-    for (let index = 0; index < tasks.length; index += BATCH_SIZE) {
+    for (
+      let index = 0;
+      index < tasks.length;
+      index += AnalysisRunner.batchSize
+    ) {
       if (this.cancelRequested) break
-      const batch = tasks.slice(index, index + BATCH_SIZE)
+      const batch = tasks.slice(index, index + AnalysisRunner.batchSize)
       const results = await Promise.allSettled(
         batch.map((task) => this.analyzeOne(task, apiKey)),
       )
@@ -110,5 +117,3 @@ export class AnalysisRunner {
     this.progress.outputTokens += analysis.outputTokens
   }
 }
-
-export const analysisRunner = new AnalysisRunner()

@@ -1,57 +1,10 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { z, ZodError } from 'zod'
+import { ZodError } from 'zod'
 
-import { JEV_MODEL, RUBRIC_VERSION } from './analysis-policy'
+import { cacheSchema, isCurrent } from './analysis-cache-schema'
 import type { Analysis, AnalysisView } from './analysis-types'
 import type { Task } from './task-types'
-
-const signal = z.number().min(0).max(1)
-const analysisSchema = z.object({
-  taskId: z.string(),
-  updatedAt: z.number(),
-  pinned: z.boolean(),
-  analyzedAt: z.number(),
-  model: z.string().nullable(),
-  rubricVersion: z.string(),
-  advice: z.enum(['archive', 'keep', 'review']),
-  reason: z.enum([
-    'active',
-    'completed',
-    'insufficientEvidence',
-    'outdated',
-    'pinned',
-    'uncertain',
-  ]),
-  signals: z
-    .object({
-      completed: signal,
-      openAction: signal,
-      stillRelevant: signal,
-      outdated: signal,
-    })
-    .nullable(),
-  inputTokens: z.number().int().nonnegative(),
-  outputTokens: z.number().int().nonnegative(),
-  elapsedMs: z.number().int().nonnegative(),
-})
-const cacheSchema = z.object({
-  version: z.literal(1),
-  entries: z.array(analysisSchema),
-})
-
-function isMissing(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === 'ENOENT'
-}
-
-export function isCurrent(analysis: Analysis, task: Task): boolean {
-  return (
-    analysis.updatedAt === task.updatedAt &&
-    analysis.pinned === task.pinned &&
-    analysis.rubricVersion === RUBRIC_VERSION &&
-    (analysis.model === JEV_MODEL || analysis.model === null)
-  )
-}
 
 /** Stores only judgments and task version metadata in ignored local storage. */
 export class AnalysisCache {
@@ -68,7 +21,8 @@ export class AnalysisCache {
       const cache = cacheSchema.parse(parsed)
       for (const entry of cache.entries) this.entries.set(entry.taskId, entry)
     } catch (error) {
-      if (isMissing(error)) return
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+        return
       if (error instanceof SyntaxError || error instanceof ZodError) {
         await rename(path, `${path}.invalid-${String(Date.now())}`)
         return
@@ -111,22 +65,34 @@ export class AnalysisCache {
 
   async save(analysis: Analysis): Promise<void> {
     await this.ready()
-    this.entries.set(analysis.taskId, analysis)
-    this.writes = this.writes.catch(() => undefined).then(() => this.write())
+    this.writes = this.writes
+      .catch(() => undefined)
+      .then(async () => {
+        const existing = this.entries.get(analysis.taskId)
+        if (
+          existing &&
+          (existing.updatedAt > analysis.updatedAt ||
+            (existing.updatedAt === analysis.updatedAt &&
+              existing.analyzedAt > analysis.analyzedAt))
+        )
+          return
+        const next = new Map(this.entries)
+        next.set(analysis.taskId, analysis)
+        await this.write(next)
+        this.entries.set(analysis.taskId, analysis)
+      })
     await this.writes
   }
 
-  private async write(): Promise<void> {
+  private async write(entries: Map<string, Analysis>): Promise<void> {
     await mkdir(this.directory, { recursive: true, mode: 0o700 })
     const path = join(this.directory, 'analysis-v1.json')
     const temporary = `${path}.${String(process.pid)}.tmp`
     await writeFile(
       temporary,
-      JSON.stringify({ version: 1, entries: [...this.entries.values()] }),
+      JSON.stringify({ version: 1, entries: [...entries.values()] }),
       { mode: 0o600 },
     )
     await rename(temporary, path)
   }
 }
-
-export const analysisCache = new AnalysisCache()

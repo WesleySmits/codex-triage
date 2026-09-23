@@ -39,6 +39,8 @@ corepack pnpm build
 
 ESLint enforces strict and stylistic type rules, import order, and small, simple files and functions. TypeScript checks unused names, return paths, and optional properties. Fallow checks dependency hygiene, code health, and duplication across the project. Lefthook runs staged lint and format checks and Fallow before commits, then Commitlint checks commit messages. Hooks check only; use `corepack pnpm lint:fix` or `corepack pnpm format` to apply fixes.
 
+Class files contain one class plus imports and type declarations. Runtime helpers, schemas, and singleton instances live in separate modules. A local ESLint rule checks this for source and test files.
+
 The generated route tree is committed so type checking works on a fresh checkout.
 
 ## Local Codex data
@@ -53,7 +55,7 @@ The server code is split by responsibility:
 
 - `codex-rpc.ts` owns the app-server process, request lifecycle, and pagination limits. `codex-protocol.ts` parses replies without process state. `codex-client.ts` maps task operations to RPC calls.
 - `local-codex-state.ts` reads the bounded local state file. `task-normalization.ts` combines that state with Codex task and project listings.
-- `archive-policy.ts` checks expected task versions and Automation ID groups. `archive-operations.ts` performs writes and readback. `task-store.ts` owns only the in-memory snapshot and mutation lock.
+- `archive-policy.ts` checks expected task versions and Automation ID groups. `archive-operations.ts` performs writes and readback. `task-store.ts` owns only the in-memory snapshot and mutation lock; `task-store-instance.ts` creates the shared instance.
 - `archive-input.ts` validates write inputs, `local-request.ts` enforces loopback requests, and `functions.ts` exposes the TanStack server functions.
 
 ## License

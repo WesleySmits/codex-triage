@@ -40,11 +40,15 @@ function fakeAnalysis(task: Task): Analysis {
 }
 
 describe('analysis runner', () => {
+  const originalApiKey = process.env.TYPESAFE_API_KEY
+
   afterEach(() => {
-    delete process.env.TYPESAFE_API_KEY
+    if (originalApiKey === undefined) delete process.env.TYPESAFE_API_KEY
+    else process.env.TYPESAFE_API_KEY = originalApiKey
   })
 
   it('requires a local key and explicit selected IDs', async () => {
+    delete process.env.TYPESAFE_API_KEY
     const source = { refresh: vi.fn().mockResolvedValue(snapshot) }
     const cache = { get: vi.fn(), save: vi.fn() }
     const runner = new AnalysisRunner(source, cache, vi.fn())

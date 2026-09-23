@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { AnalysisCache, isCurrent } from './analysis-cache'
+import { AnalysisCache } from './analysis-cache'
+import { isCurrent } from './analysis-cache-schema'
 import { JEV_MODEL, RUBRIC_VERSION } from './analysis-policy'
 import type { Analysis } from './analysis-types'
 import type { Task } from './task-types'
@@ -76,5 +77,25 @@ describe('analysis cache', () => {
     const files = await readdir(directory)
     expect(files).toHaveLength(1)
     expect(files[0]).toMatch(/^analysis-v1\.json\.invalid-/)
+  })
+
+  it('does not publish a failed save as a cache hit', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'triage-analysis-'))
+    directories.push(directory)
+    const cache = new AnalysisCache(directory)
+    expect(await cache.get(task)).toBeNull()
+    await rm(directory, { recursive: true })
+    await writeFile(directory, 'occupied', 'utf8')
+    await expect(cache.save(analysis)).rejects.toThrow()
+    expect(await cache.get(task)).toBeNull()
+  })
+
+  it('keeps a newer task version when an older save arrives later', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'triage-analysis-'))
+    directories.push(directory)
+    const cache = new AnalysisCache(directory)
+    const newer = { ...analysis, updatedAt: 5, analyzedAt: 10 }
+    await Promise.all([cache.save(newer), cache.save(analysis)])
+    expect(await cache.get({ ...task, updatedAt: 5 })).toEqual(newer)
   })
 })
