@@ -15,8 +15,18 @@ const allowed = new Set([
   'TSTypeAliasDeclaration',
 ])
 
+function isTypeOnlyExport(statement) {
+  if (statement.exportKind === 'type') return true
+  return (
+    statement.type === 'ExportNamedDeclaration' &&
+    !statement.declaration &&
+    statement.specifiers.length > 0 &&
+    statement.specifiers.every((specifier) => specifier.exportKind === 'type')
+  )
+}
+
 function inspectStatement(context, statement, foundClass) {
-  if (statement.exportKind === 'type') return foundClass
+  if (isTypeOnlyExport(statement)) return foundClass
   const declaration = declarationOf(statement)
   if (declaration?.type === 'ClassDeclaration') {
     if (foundClass) context.report({ node: statement, messageId: 'multiple' })

@@ -25,6 +25,17 @@ describe('class-only-file rule', () => {
     ).toEqual([])
   })
 
+  it('allows inline type-only exports but rejects mixed value exports', () => {
+    expect(
+      messages('type Value = string; class Example {} export { type Value }'),
+    ).toEqual([])
+    expect(
+      messages(
+        'type Value = string; class Example {} export { type Value, Example }',
+      ),
+    ).toHaveLength(1)
+  })
+
   it('rejects runtime helpers and singleton instances beside a class', () => {
     const errors = messages(
       'function helper() {} export class Example {} export const instance = new Example()',
