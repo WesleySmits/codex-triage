@@ -27,5 +27,4 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm fallow
-        if: github.event_name == 'pull_request'
       - run: pnpm build

@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  "ignoreDependencies": ["@tanstack/react-start", "react-dom"],
+  "rules": {
+    "unused-dev-dependencies": "error",
+    "unused-optional-dependencies": "error",
+    "dev-dependencies-in-production": "error",
+    "test-only-dependencies": "error",
+    "re-export-cycle": "error",
+    "stale-suppressions": "error",
+    "require-suppression-reason": "error"
+  },
+  "health": {
+    "maxCyclomatic": 10,
+    "maxCognitive": 12,
+    "maxUnitSize": 60,
+    "ignore": ["src/routeTree.gen.ts"]
+  },
+  "duplicates": {
+    "mode": "mild",
+    "minTokens": 50,
+    "minLines": 5
+  }
+}
