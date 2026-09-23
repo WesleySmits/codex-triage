@@ -75,6 +75,36 @@ class FakeClient implements CodexClientLike {
   }
 }
 
+function deferred() {
+  let resolve: () => void = () => {}
+  const promise = new Promise<void>((done) => {
+    resolve = done
+  })
+  return { promise, resolve }
+}
+
+class RacingClient extends FakeClient {
+  readonly writeStarted = deferred()
+  readonly releaseWrite = deferred()
+  readonly staleReadStarted = deferred()
+  readonly releaseStaleRead = deferred()
+  delayNextRead = false
+
+  override listActiveThreads() {
+    const snapshot = [...this.active]
+    if (!this.delayNextRead) return Promise.resolve(snapshot)
+    this.delayNextRead = false
+    this.staleReadStarted.resolve()
+    return this.releaseStaleRead.promise.then(() => snapshot)
+  }
+
+  override async archiveThread(id: string) {
+    this.writeStarted.resolve()
+    await this.releaseWrite.promise
+    return super.archiveThread(id)
+  }
+}
+
 function store(client: FakeClient, pinnedIds: string[] = []) {
   return new TaskStore(
     () => client,
@@ -205,5 +235,28 @@ describe('archive policy', () => {
     )
     expect(uncertain.status).toBe('uncertain')
     expect(client.writes.at(-1)).toBe(ids[2])
+  })
+})
+
+describe('post-write refresh', () => {
+  it('loads again after a pre-write refresh finishes', async () => {
+    const client = new RacingClient()
+    const task = thread(0)
+    client.active = [task]
+    const taskStore = store(client)
+    const archived = taskStore.setArchived(expected(task), true)
+    await client.writeStarted.promise
+
+    client.delayNextRead = true
+    const staleRead = taskStore.refresh()
+    await client.staleReadStarted.promise
+    client.releaseWrite.resolve()
+    client.releaseStaleRead.resolve()
+
+    expect((await staleRead).tasks).toHaveLength(1)
+    const result = await archived
+    expect(result.status).toBe('complete')
+    expect(result.snapshot.tasks).toEqual([])
+    expect((await taskStore.snapshot()).tasks).toEqual([])
   })
 })

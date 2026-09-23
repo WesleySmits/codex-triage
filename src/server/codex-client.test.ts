@@ -7,7 +7,7 @@ import { createCodexClient } from './codex-client'
 const temporaryDirectories: string[] = []
 
 async function fakeAppServer(
-  mode: 'normal' | 'repeated-cursor' | 'silent',
+  mode: 'normal' | 'repeated-cursor' | 'silent' | 'close-stdin',
 ): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), 'codex-triage-test-'))
   temporaryDirectories.push(directory)
@@ -22,7 +22,15 @@ process.stdin.on('data', chunk => {
     const line = input.slice(0, end);
     input = input.slice(end + 1);
     const request = JSON.parse(line);
-    if (request.method === 'initialized' || mode === 'silent') continue;
+    if (request.method === 'initialized') {
+      if (mode === 'close-stdin') {
+        process.stdin.destroy();
+        require('node:fs').closeSync(0);
+        setInterval(() => {}, 1000);
+      }
+      continue;
+    }
+    if (mode === 'silent') continue;
     let result = {};
     if (request.method === 'thread/list') {
       const first = !request.params.cursor;
@@ -117,5 +125,21 @@ describe('Codex app-server transport', () => {
     })
     await expect(client.connect()).rejects.toThrow('timed out')
     client.close()
+  })
+
+  it('rejects a broken input pipe without crashing the app', async () => {
+    const client = createCodexClient({
+      command: await fakeAppServer('close-stdin'),
+      requestTimeoutMs: 1_000,
+    })
+    try {
+      await client.connect()
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      await expect(client.listActiveThreads()).rejects.toThrow(
+        /input failed|write failed/,
+      )
+    } finally {
+      client.close()
+    }
   })
 })
