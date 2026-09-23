@@ -20,5 +20,6 @@
     "mode": "mild",
     "minTokens": 50,
     "minLines": 5
-  }
+  },
+  "entry": ["src/server/functions.ts"]
 }

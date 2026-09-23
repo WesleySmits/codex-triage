@@ -31,6 +31,21 @@ ESLint enforces strict and stylistic type rules, import order, and small, simple
 
 The generated route tree is committed so type checking works on a fresh checkout.
 
+## Local Codex data
+
+The server layer in `src/server` connects to `codex app-server --stdio`. It loads active tasks and projects, combines them with local pin and project state, and detects automation IDs in an automation run's opening text. A snapshot stays in server memory until the user explicitly refreshes it. No task data is saved by this project.
+
+Server functions provide snapshot and refresh operations, archived task metadata for unarchive review, individual archive and unarchive, and a group archive operation for one Automation ID. Each write checks fresh local state first and reads the result back. A group call handles at most ten runs. The caller must review the returned snapshot before continuing; `partial` and `uncertain` results require manual reconciliation. These functions are ready for a future UI and are not connected to the foundation page yet.
+
+Vite development and preview bind to `127.0.0.1`. Server functions also reject requests whose URL or Host is outside loopback. Run any production server on loopback as well. The app does not send task data to an external service.
+
+The server code is split by responsibility:
+
+- `codex-rpc.ts` owns the app-server process, request lifecycle, and pagination limits. `codex-protocol.ts` parses replies without process state. `codex-client.ts` maps task operations to RPC calls.
+- `local-codex-state.ts` reads the bounded local state file. `task-normalization.ts` combines that state with Codex task and project listings.
+- `archive-policy.ts` checks expected task versions and Automation ID groups. `archive-operations.ts` performs writes and readback. `task-store.ts` owns only the in-memory snapshot and mutation lock.
+- `archive-input.ts` validates write inputs, `local-request.ts` enforces loopback requests, and `functions.ts` exposes the TanStack server functions.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
