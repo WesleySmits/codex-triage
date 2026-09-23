@@ -20,12 +20,18 @@ function stringField(value: unknown, key: string): string | null {
   return typeof field === 'string' ? field : null
 }
 
-export async function readLocalState(): Promise<LocalState> {
-  const path = join(
-    process.env.CODEX_HOME ?? join(homedir(), '.codex'),
-    '.codex-global-state.json',
-  )
-  const file = await stat(path)
+export async function readLocalState(
+  codexHome = process.env.CODEX_HOME ?? join(homedir(), '.codex'),
+): Promise<LocalState> {
+  const path = join(codexHome, '.codex-global-state.json')
+  let file
+  try {
+    file = await stat(path)
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+      return {}
+    throw error
+  }
   if (file.size > 4_000_000)
     throw new Error('Codex state file exceeds the local size limit')
   const parsed: unknown = JSON.parse(await readFile(path, 'utf8'))

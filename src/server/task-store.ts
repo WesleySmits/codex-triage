@@ -38,13 +38,22 @@ export class TaskStore {
 
   /** Refresh only on explicit request, first access, or before and after a write. */
   async refresh(): Promise<Snapshot> {
-    if (this.refreshInFlight) return this.refreshInFlight
-    this.refreshInFlight = this.load()
-    try {
-      return await this.refreshInFlight
-    } finally {
-      this.refreshInFlight = null
-    }
+    return this.refreshInFlight ?? this.startRefresh()
+  }
+
+  private startRefresh(): Promise<Snapshot> {
+    const pending = this.load()
+    const tracked = pending.finally(() => {
+      if (this.refreshInFlight === tracked) this.refreshInFlight = null
+    })
+    this.refreshInFlight = tracked
+    return tracked
+  }
+
+  /** Wait out reads that began before the write, then load from Codex again. */
+  private async refreshAfterWrite(): Promise<Snapshot> {
+    while (this.refreshInFlight) await this.refreshInFlight
+    return this.startRefresh()
   }
 
   async archivedTasks(): Promise<ExpectedTask[]> {
@@ -120,7 +129,8 @@ export class TaskStore {
       )
       return {
         ...outcome,
-        snapshot: outcome.status === 'stale' ? fresh : await this.refresh(),
+        snapshot:
+          outcome.status === 'stale' ? fresh : await this.refreshAfterWrite(),
       }
     })
   }
@@ -136,7 +146,7 @@ export class TaskStore {
       const outcome = await this.runWrite((client) =>
         writeBatch(client, group.slice(0, 10), group.length),
       )
-      return { ...outcome, snapshot: await this.refresh() }
+      return { ...outcome, snapshot: await this.refreshAfterWrite() }
     })
   }
 

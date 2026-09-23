@@ -49,6 +49,10 @@ export class CodexRpc {
     })
     this.child = child
     child.stderr.resume()
+    child.stdin.on('error', (error) => {
+      this.ready = false
+      this.failAll(`Codex app-server input failed: ${error.message}`)
+    })
     child.on('error', (error) =>
       this.failAll(`Codex app-server failed to start: ${error.message}`),
     )
