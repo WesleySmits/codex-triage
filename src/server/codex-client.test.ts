@@ -2,7 +2,7 @@ import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { CodexClient } from './codex-client'
+import { createCodexClient } from './codex-client'
 
 const temporaryDirectories: string[] = []
 
@@ -52,7 +52,7 @@ afterEach(async () => {
 
 describe('Codex app-server transport', () => {
   it('initializes and paginates synthetic tasks', async () => {
-    const client = new CodexClient({
+    const client = createCodexClient({
       command: await fakeAppServer('normal'),
       requestTimeoutMs: 1_000,
     })
@@ -73,7 +73,7 @@ describe('Codex app-server transport', () => {
   })
 
   it('stops repeated cursors', async () => {
-    const client = new CodexClient({
+    const client = createCodexClient({
       command: await fakeAppServer('repeated-cursor'),
       requestTimeoutMs: 1_000,
     })
@@ -87,8 +87,31 @@ describe('Codex app-server transport', () => {
     }
   })
 
+  it('bounds pages and total items', async () => {
+    const command = await fakeAppServer('normal')
+    const pageLimited = createCodexClient({ command, maxPages: 1 })
+    try {
+      await pageLimited.connect()
+      await expect(pageLimited.listActiveThreads()).rejects.toThrow(
+        'Too many pages',
+      )
+    } finally {
+      pageLimited.close()
+    }
+
+    const itemLimited = createCodexClient({ command, maxItems: 1 })
+    try {
+      await itemLimited.connect()
+      await expect(itemLimited.listActiveThreads()).rejects.toThrow(
+        'Too many results',
+      )
+    } finally {
+      itemLimited.close()
+    }
+  })
+
   it('bounds an unresponsive initialization', async () => {
-    const client = new CodexClient({
+    const client = createCodexClient({
       command: await fakeAppServer('silent'),
       requestTimeoutMs: 50,
     })

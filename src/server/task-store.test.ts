@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { detectAutomationId, TaskStore, type ExpectedTask } from './task-store'
+import { TaskStore } from './task-store'
+import { detectAutomationId } from './task-normalization'
+import type { ExpectedTask } from './task-types'
 import type { CodexClientLike, CodexThread } from './codex-types'
 
 const ids = Array.from(
