@@ -2,6 +2,7 @@ import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+
 import { createCodexClient } from './codex-client'
 
 const temporaryDirectories: string[] = []
@@ -94,7 +95,9 @@ describe('Codex app-server transport', () => {
       client.close()
     }
   })
+})
 
+describe('Codex app-server transport limits', () => {
   it('bounds pages and total items', async () => {
     const command = await fakeAppServer('normal')
     const pageLimited = createCodexClient({ command, maxPages: 1 })

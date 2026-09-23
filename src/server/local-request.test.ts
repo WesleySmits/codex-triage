@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { isAllowedLocalRequest } from './local-request'
 
 function request(url: string, headers: Record<string, string>): Request {

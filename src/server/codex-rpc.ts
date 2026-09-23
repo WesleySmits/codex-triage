@@ -1,8 +1,9 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
+
 import { parsePage, parseRpcReply } from './codex-protocol'
 
-type Pending = {
+interface Pending {
   resolve(value: unknown): void
   reject(reason: Error): void
   timer: NodeJS.Timeout
@@ -53,12 +54,12 @@ export class CodexRpc {
       this.ready = false
       this.failAll(`Codex app-server input failed: ${error.message}`)
     })
-    child.on('error', (error) =>
-      this.failAll(`Codex app-server failed to start: ${error.message}`),
-    )
+    child.on('error', (error) => {
+      this.failAll(`Codex app-server failed to start: ${error.message}`)
+    })
     child.on('exit', (code) => {
       this.ready = false
-      this.failAll(`Codex app-server exited (${code})`)
+      this.failAll(`Codex app-server exited (${String(code)})`)
     })
     void (async () => {
       try {

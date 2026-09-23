@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { TaskStore } from './task-store'
-import { detectAutomationId } from './task-normalization'
-import type { ExpectedTask } from './task-types'
+
 import type { CodexClientLike, CodexThread } from './codex-types'
+import { detectAutomationId } from './task-normalization'
+import { TaskStore } from './task-store'
+import type { ExpectedTask } from './task-types'
 
 const ids = Array.from(
   { length: 12 },
@@ -10,13 +11,19 @@ const ids = Array.from(
     `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
 )
 
+function taskId(index: number): string {
+  const id = ids[index]
+  if (!id) throw new Error(`Missing synthetic task ${String(index)}`)
+  return id
+}
+
 function thread(
   index: number,
   preview = 'Automation: Example\nAutomation ID: sample_job',
 ): CodexThread {
   return {
-    id: ids[index]!,
-    name: `Synthetic task ${index + 1}`,
+    id: taskId(index),
+    name: `Synthetic task ${String(index + 1)}`,
     preview,
     projectId: 'synthetic-project',
     createdAt: index + 1,
@@ -35,7 +42,9 @@ class FakeClient implements CodexClientLike {
   connect() {
     return Promise.resolve()
   }
-  close() {}
+  close() {
+    return undefined
+  }
   listActiveThreads() {
     return Promise.resolve(this.active)
   }
@@ -76,32 +85,44 @@ class FakeClient implements CodexClientLike {
 }
 
 function deferred() {
-  let resolve: () => void = () => {}
+  let resolve: () => void = () => {
+    throw new Error('Deferred promise was not initialized')
+  }
   const promise = new Promise<void>((done) => {
     resolve = done
   })
   return { promise, resolve }
 }
 
-class RacingClient extends FakeClient {
-  readonly writeStarted = deferred()
-  readonly releaseWrite = deferred()
-  readonly staleReadStarted = deferred()
-  readonly releaseStaleRead = deferred()
-  delayNextRead = false
-
-  override listActiveThreads() {
-    const snapshot = [...this.active]
-    if (!this.delayNextRead) return Promise.resolve(snapshot)
-    this.delayNextRead = false
-    this.staleReadStarted.resolve()
-    return this.releaseStaleRead.promise.then(() => snapshot)
+function racingClient() {
+  const client = new FakeClient()
+  const writeStarted = deferred()
+  const releaseWrite = deferred()
+  const staleReadStarted = deferred()
+  const releaseStaleRead = deferred()
+  let delayNextRead = false
+  client.listActiveThreads = () => {
+    const snapshot = [...client.active]
+    if (!delayNextRead) return Promise.resolve(snapshot)
+    delayNextRead = false
+    staleReadStarted.resolve()
+    return releaseStaleRead.promise.then(() => snapshot)
   }
-
-  override async archiveThread(id: string) {
-    this.writeStarted.resolve()
-    await this.releaseWrite.promise
-    return super.archiveThread(id)
+  const archiveThread = client.archiveThread.bind(client)
+  client.archiveThread = async (id: string) => {
+    writeStarted.resolve()
+    await releaseWrite.promise
+    return archiveThread(id)
+  }
+  return {
+    client,
+    writeStarted,
+    releaseWrite,
+    staleReadStarted,
+    releaseStaleRead,
+    delayRead() {
+      delayNextRead = true
+    },
   }
 }
 
@@ -120,7 +141,7 @@ function store(client: FakeClient, pinnedIds: string[] = []) {
 function expected(task: CodexThread, pinned = false): ExpectedTask {
   return {
     id: task.id,
-    createdAt: task.createdAt!,
+    createdAt: task.createdAt ?? task.updatedAt,
     updatedAt: task.updatedAt,
     pinned,
   }
@@ -138,7 +159,7 @@ describe('local task state', () => {
   it('loads a memory snapshot and changes it only on explicit refresh', async () => {
     const client = new FakeClient()
     client.active = [thread(0)]
-    const taskStore = store(client, [ids[0]!])
+    const taskStore = store(client, [taskId(0)])
     const first = await taskStore.snapshot()
     expect(first.tasks[0]).toMatchObject({
       pinned: true,
@@ -165,7 +186,7 @@ describe('archive policy', () => {
     const client = new FakeClient()
     client.active = [thread(0)]
     const result = await store(client).setArchived(
-      { ...expected(client.active[0]!), updatedAt: 1 },
+      { ...expected(thread(0)), updatedAt: 1 },
       true,
     )
     expect(result.status).toBe('stale')
@@ -194,7 +215,9 @@ describe('archive policy', () => {
     )
     expect(client.writes).toEqual([task.id, task.id])
   })
+})
 
+describe('automation group archive policy', () => {
   it('archives at most ten runs and requires a fresh remaining-group decision', async () => {
     const client = new FakeClient()
     client.active = ids.map((_, index) => thread(index))
@@ -216,7 +239,7 @@ describe('archive policy', () => {
   it('reports partial writes and uncertain readback without retrying', async () => {
     const client = new FakeClient()
     client.active = [thread(0), thread(1)]
-    client.failWrite = ids[1]!
+    client.failWrite = taskId(1)
     const taskStore = store(client)
     const result = await taskStore.archiveAutomationGroup(
       'sample_job',
@@ -229,10 +252,7 @@ describe('archive policy', () => {
     client.active = [thread(2)]
     client.failWrite = null
     client.failReadback = true
-    const uncertain = await taskStore.setArchived(
-      expected(client.active[0]!),
-      true,
-    )
+    const uncertain = await taskStore.setArchived(expected(thread(2)), true)
     expect(uncertain.status).toBe('uncertain')
     expect(client.writes.at(-1)).toBe(ids[2])
   })
@@ -240,18 +260,19 @@ describe('archive policy', () => {
 
 describe('post-write refresh', () => {
   it('loads again after a pre-write refresh finishes', async () => {
-    const client = new RacingClient()
+    const race = racingClient()
+    const { client } = race
     const task = thread(0)
     client.active = [task]
     const taskStore = store(client)
     const archived = taskStore.setArchived(expected(task), true)
-    await client.writeStarted.promise
+    await race.writeStarted.promise
 
-    client.delayNextRead = true
+    race.delayRead()
     const staleRead = taskStore.refresh()
-    await client.staleReadStarted.promise
-    client.releaseWrite.resolve()
-    client.releaseStaleRead.resolve()
+    await race.staleReadStarted.promise
+    race.releaseWrite.resolve()
+    race.releaseStaleRead.resolve()
 
     expect((await staleRead).tasks).toHaveLength(1)
     const result = await archived

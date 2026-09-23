@@ -1,8 +1,8 @@
-import { createCodexClient } from './codex-client'
-import type { CodexClientLike } from './codex-types'
 import { writeBatch, writeSingle } from './archive-operations'
 import { canChangeArchiveState, currentAutomationGroup } from './archive-policy'
-import { readLocalState, type LocalState } from './local-codex-state'
+import { createCodexClient } from './codex-client'
+import type { CodexClientLike } from './codex-types'
+import { type LocalState, readLocalState } from './local-codex-state'
 import {
   normalizeActiveTasks,
   normalizeArchivedTasks,

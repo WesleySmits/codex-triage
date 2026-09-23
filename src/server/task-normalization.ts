@@ -1,9 +1,9 @@
 import type { CodexClientLike, CodexProject, CodexThread } from './codex-types'
 import {
+  type LocalState,
   pinnedIds,
   projectAssignment,
   projectNames,
-  type LocalState,
 } from './local-codex-state'
 import type { ExpectedTask, Project, Task } from './task-types'
 
@@ -21,9 +21,10 @@ export function detectAutomationId(text: string): string | null {
 }
 
 function taskTitle(raw: CodexThread): string | null {
-  return (
-    raw.name?.trim() || raw.preview.split(/\r?\n/, 1)[0]?.slice(0, 100) || null
-  )
+  const name = raw.name?.trim()
+  if (name) return name
+  const preview = raw.preview.split(/\r?\n/, 1)[0]?.slice(0, 100)
+  return preview?.length ? preview : null
 }
 
 async function automationIds(
@@ -57,13 +58,15 @@ async function automationIds(
   return ids
 }
 
-function toTask(
-  raw: CodexThread,
-  state: LocalState,
-  pins: Set<string>,
-  names: Map<string, string | null>,
-  ids: Map<string, string>,
-): Task {
+interface TaskContext {
+  state: LocalState
+  pins: Set<string>
+  names: Map<string, string | null>
+  ids: Map<string, string>
+}
+
+function toTask(raw: CodexThread, context: TaskContext): Task {
+  const { state, pins, names, ids } = context
   const projectId = raw.projectId ?? projectAssignment(state, raw.id)
   if (projectId && !names.has(projectId)) names.set(projectId, null)
   return {
@@ -88,7 +91,8 @@ export async function normalizeActiveTasks(
   const pins = pinnedIds(state)
   const names = projectNames(rawProjects, state)
   const ids = await automationIds(client, rawTasks)
-  const tasks = rawTasks.map((raw) => toTask(raw, state, pins, names, ids))
+  const context = { state, pins, names, ids }
+  const tasks = rawTasks.map((raw) => toTask(raw, context))
   const projects = [...names]
     .map(([id, name]) => ({ id, name }))
     .sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id))

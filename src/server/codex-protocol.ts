@@ -90,6 +90,13 @@ export function parseOpeningText(value: unknown): string | null {
 export type RpcReply =
   { id: number; result: unknown } | { id: number; error: string }
 
+function replyError(value: unknown): string {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return 'Unknown Codex app-server error'
+  const detail = (value as Record<string, unknown>).message
+  return typeof detail === 'string' ? detail : 'Unknown Codex app-server error'
+}
+
 /** Ignore notifications and non-JSON output; identify replies by numeric request ID. */
 export function parseRpcReply(line: string): RpcReply | null {
   let value: unknown
@@ -103,16 +110,7 @@ export function parseRpcReply(line: string): RpcReply | null {
   const message = value as Record<string, unknown>
   if (typeof message.id !== 'number') return null
   if (message.error !== undefined) {
-    const error = message.error
-    const detail =
-      typeof error === 'object' && error !== null && !Array.isArray(error)
-        ? (error as Record<string, unknown>).message
-        : undefined
-    return {
-      id: message.id,
-      error:
-        typeof detail === 'string' ? detail : 'Unknown Codex app-server error',
-    }
+    return { id: message.id, error: replyError(message.error) }
   }
   if ('result' in message) return { id: message.id, result: message.result }
   return { id: message.id, error: 'Codex app-server reply has no result' }

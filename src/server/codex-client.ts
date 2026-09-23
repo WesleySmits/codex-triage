@@ -26,7 +26,9 @@ export function createCodexClient(
     )
   return {
     connect: () => rpc.connect(),
-    close: () => rpc.close(),
+    close: () => {
+      rpc.close()
+    },
     listActiveThreads: () =>
       rpc.pages(
         'thread/list',

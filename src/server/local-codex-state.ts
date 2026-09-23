@@ -1,6 +1,7 @@
 import { readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+
 import type { CodexProject } from './codex-types'
 
 export interface LocalState {
@@ -20,18 +21,22 @@ function stringField(value: unknown, key: string): string | null {
   return typeof field === 'string' ? field : null
 }
 
+async function optionalStateFile(path: string) {
+  try {
+    return await stat(path)
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+      return null
+    throw error
+  }
+}
+
 export async function readLocalState(
   codexHome = process.env.CODEX_HOME ?? join(homedir(), '.codex'),
 ): Promise<LocalState> {
   const path = join(codexHome, '.codex-global-state.json')
-  let file
-  try {
-    file = await stat(path)
-  } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
-      return {}
-    throw error
-  }
+  const file = await optionalStateFile(path)
+  if (!file) return {}
   if (file.size > 4_000_000)
     throw new Error('Codex state file exceeds the local size limit')
   const parsed: unknown = JSON.parse(await readFile(path, 'utf8'))
