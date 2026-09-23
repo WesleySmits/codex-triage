@@ -1,0 +1,17 @@
+# Checks only. Run lint:fix or format explicitly when a check fails.
+pre-commit:
+  parallel: false
+  jobs:
+    - name: eslint
+      glob: '*.{js,jsx,ts,tsx}'
+      run: pnpm exec eslint --no-warn-ignored {staged_files}
+    - name: prettier
+      glob: '*.{js,jsx,ts,tsx,json,jsonc,css,md,yml,yaml}'
+      run: pnpm exec prettier --check {staged_files}
+    - name: fallow
+      run: pnpm fallow
+
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: pnpm exec commitlint --edit "{1}"
