@@ -36,7 +36,14 @@ describe('external text minimization', () => {
                         content: [{ type: 'text', text: 'Please help' }],
                       },
                     ]
-                  : [{ type: 'agentMessage', text: 'Done' }],
+                  : [
+                      {
+                        type: 'agentMessage',
+                        phase: 'commentary',
+                        text: 'Draft',
+                      },
+                      { type: 'agentMessage', phase: 'final', text: 'Done' },
+                    ],
             },
           ],
         }),

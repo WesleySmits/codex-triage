@@ -23,13 +23,9 @@ function turns(value: unknown): Turn[] {
   })
 }
 
-function itemText(item: unknown, type: 'agentMessage' | 'userMessage') {
+function itemText(item: unknown) {
   const row = record(item)
-  if (row.type !== type) return ''
-  if (type === 'agentMessage')
-    return row.phase !== 'commentary' && typeof row.text === 'string'
-      ? row.text
-      : ''
+  if (row.type !== 'userMessage') return ''
   if (!Array.isArray(row.content)) return ''
   return row.content
     .flatMap((part: unknown) => {
@@ -41,8 +37,21 @@ function itemText(item: unknown, type: 'agentMessage' | 'userMessage') {
     .join(' ')
 }
 
-function textOf(turn: Turn | undefined, type: 'agentMessage' | 'userMessage') {
-  return (turn?.items ?? []).map((item) => itemText(item, type)).join(' ')
+function userText(turn: Turn | undefined) {
+  return (turn?.items ?? []).map(itemText).join(' ')
+}
+
+function finalAssistantText(turn: Turn | undefined): string {
+  for (const item of [...(turn?.items ?? [])].reverse()) {
+    const row = record(item)
+    if (
+      row.type === 'agentMessage' &&
+      row.phase === 'final' &&
+      typeof row.text === 'string'
+    )
+      return row.text
+  }
+  return ''
 }
 
 /** Remove common identifiers and bound each field before external transfer. */
@@ -90,11 +99,9 @@ export async function readEvidence(
   const recent = turns(latest)[0]
   return {
     title: minimize(task.title ?? '', 180),
-    openingRequest: minimize(textOf(opening, 'userMessage'), 600),
+    openingRequest: minimize(userText(opening), 600),
     latestUser:
-      recent?.id === opening?.id
-        ? ''
-        : minimize(textOf(recent, 'userMessage'), 350),
-    latestAssistant: minimize(textOf(recent, 'agentMessage'), 700),
+      recent?.id === opening?.id ? '' : minimize(userText(recent), 350),
+    latestAssistant: minimize(finalAssistantText(recent), 700),
   }
 }

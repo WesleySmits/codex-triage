@@ -124,14 +124,19 @@ export class AnalysisRunner {
     apiKey: string,
     rpc: Pick<CodexRpc, 'request'>,
   ): Promise<void> {
-    const results = await Promise.allSettled(
-      batch.map((task) => this.analyzeOne(task, apiKey, rpc)),
+    await Promise.allSettled(
+      batch.map(async (task) => {
+        try {
+          await this.analyzeOne(task, apiKey, rpc)
+        } catch (error) {
+          this.progress.failed++
+          throw error
+        } finally {
+          this.progress.completed++
+          this.progress.lastCompletedId = task.id
+        }
+      }),
     )
-    for (const [offset, result] of results.entries()) {
-      this.progress.completed++
-      this.progress.lastCompletedId = batch[offset]?.id ?? null
-      if (result.status === 'rejected') this.progress.failed++
-    }
   }
 
   private async analyzeOne(

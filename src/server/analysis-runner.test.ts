@@ -39,14 +39,14 @@ function fakeAnalysis(task: Task): Analysis {
   }
 }
 
+const originalApiKey = process.env.TYPESAFE_API_KEY
+
+afterEach(() => {
+  if (originalApiKey === undefined) delete process.env.TYPESAFE_API_KEY
+  else process.env.TYPESAFE_API_KEY = originalApiKey
+})
+
 describe('analysis runner', () => {
-  const originalApiKey = process.env.TYPESAFE_API_KEY
-
-  afterEach(() => {
-    if (originalApiKey === undefined) delete process.env.TYPESAFE_API_KEY
-    else process.env.TYPESAFE_API_KEY = originalApiKey
-  })
-
   it('requires a local key and explicit selected IDs', async () => {
     delete process.env.TYPESAFE_API_KEY
     const source = { refresh: vi.fn().mockResolvedValue(snapshot) }
@@ -95,5 +95,51 @@ describe('analysis runner', () => {
     expect(cache.save).toHaveBeenCalledTimes(4)
     expect(rpc.connect).toHaveBeenCalledTimes(1)
     expect(rpc.close).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('live batch progress', () => {
+  it('reports a settled task while another task in the batch is running', async () => {
+    process.env.TYPESAFE_API_KEY = 'synthetic-key'
+    const first = tasks[0]
+    const second = tasks[1]
+    if (!first || !second) throw new Error('Missing synthetic tasks')
+    let release: () => void = () => {
+      throw new Error('Pending task was not initialized')
+    }
+    const pending = new Promise<Analysis>((resolve) => {
+      release = () => {
+        resolve(fakeAnalysis(second))
+      }
+    })
+    const analyze = vi.fn((task: Task) =>
+      task.id === second.id ? pending : Promise.resolve(fakeAnalysis(task)),
+    )
+    const rpc = {
+      connect: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn(),
+      request: vi.fn().mockResolvedValue({ data: [] }),
+    }
+    const runner = new AnalysisRunner(
+      { refresh: vi.fn().mockResolvedValue(snapshot) },
+      {
+        get: vi.fn().mockResolvedValue(null),
+        save: vi.fn().mockResolvedValue(undefined),
+      },
+      analyze,
+      () => rpc,
+    )
+    await runner.start([first.id, second.id])
+    await vi.waitFor(() => {
+      expect(runner.status().progress).toMatchObject({
+        status: 'running',
+        completed: 1,
+        lastCompletedId: first.id,
+      })
+    })
+    release()
+    await vi.waitFor(() => {
+      expect(runner.status().progress.status).toBe('complete')
+    })
   })
 })
