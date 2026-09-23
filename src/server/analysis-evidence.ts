@@ -46,7 +46,7 @@ function finalAssistantText(turn: Turn | undefined): string {
     const row = record(item)
     if (
       row.type === 'agentMessage' &&
-      row.phase === 'final' &&
+      (row.phase === 'final_answer' || row.phase == null) &&
       typeof row.text === 'string'
     )
       return row.text

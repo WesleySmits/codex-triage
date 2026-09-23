@@ -1,17 +1,18 @@
-import { describe, expect, it, vi } from 'vitest'
+import { expect, it, vi } from 'vitest'
 
 import { minimize, readEvidence } from './analysis-evidence'
 import type { Task } from './task-types'
 
-describe('external text minimization', () => {
-  it('removes common contact, link, path, and secret shapes before truncating', () => {
-    const text =
-      'mail hello@example.com https://example.com/a /Users/person/private sk-exampletoken1234567890'
-    expect(minimize(text, 200)).toBe('mail [email] [link] [path] [secret]')
-    expect(minimize(text, 10)).toHaveLength(10)
-  })
+it('removes common contact, link, path, and secret shapes before truncating', () => {
+  const text =
+    'mail hello@example.com https://example.com/a /Users/person/private sk-exampletoken1234567890'
+  expect(minimize(text, 200)).toBe('mail [email] [link] [path] [secret]')
+  expect(minimize(text, 10)).toHaveLength(10)
+})
 
-  it('reads opening and latest turns through the supplied connection', async () => {
+it.each(['final_answer', null, undefined])(
+  'reads opening and latest turns with phase %s',
+  async (phase) => {
     const task: Task = {
       id: 'synthetic-task',
       title: 'Synthetic task',
@@ -42,7 +43,11 @@ describe('external text minimization', () => {
                         phase: 'commentary',
                         text: 'Draft',
                       },
-                      { type: 'agentMessage', phase: 'final', text: 'Done' },
+                      {
+                        type: 'agentMessage',
+                        phase,
+                        text: 'Done',
+                      },
                     ],
             },
           ],
@@ -56,5 +61,5 @@ describe('external text minimization', () => {
       latestAssistant: 'Done',
     })
     expect(rpc.request).toHaveBeenCalledTimes(2)
-  })
-})
+  },
+)
