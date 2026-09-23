@@ -1,4 +1,4 @@
-import { CodexRpc } from './codex-rpc'
+import type { CodexRpc } from './codex-rpc'
 import type { Task } from './task-types'
 
 interface Turn {
@@ -68,36 +68,33 @@ export interface Evidence {
   latestAssistant: string
 }
 
-export async function readEvidence(task: Task): Promise<Evidence> {
-  const rpc = new CodexRpc()
-  try {
-    await rpc.connect()
-    const [first, latest] = await Promise.all([
-      rpc.request('thread/turns/list', {
-        threadId: task.id,
-        sortDirection: 'asc',
-        limit: 1,
-        itemsView: 'full',
-      }),
-      rpc.request('thread/turns/list', {
-        threadId: task.id,
-        sortDirection: 'desc',
-        limit: 1,
-        itemsView: 'full',
-      }),
-    ])
-    const opening = turns(first)[0]
-    const recent = turns(latest)[0]
-    return {
-      title: minimize(task.title ?? '', 180),
-      openingRequest: minimize(textOf(opening, 'userMessage'), 600),
-      latestUser:
-        recent?.id === opening?.id
-          ? ''
-          : minimize(textOf(recent, 'userMessage'), 350),
-      latestAssistant: minimize(textOf(recent, 'agentMessage'), 700),
-    }
-  } finally {
-    rpc.close()
+export async function readEvidence(
+  rpc: Pick<CodexRpc, 'request'>,
+  task: Task,
+): Promise<Evidence> {
+  const [first, latest] = await Promise.all([
+    rpc.request('thread/turns/list', {
+      threadId: task.id,
+      sortDirection: 'asc',
+      limit: 1,
+      itemsView: 'full',
+    }),
+    rpc.request('thread/turns/list', {
+      threadId: task.id,
+      sortDirection: 'desc',
+      limit: 1,
+      itemsView: 'full',
+    }),
+  ])
+  const opening = turns(first)[0]
+  const recent = turns(latest)[0]
+  return {
+    title: minimize(task.title ?? '', 180),
+    openingRequest: minimize(textOf(opening, 'userMessage'), 600),
+    latestUser:
+      recent?.id === opening?.id
+        ? ''
+        : minimize(textOf(recent, 'userMessage'), 350),
+    latestAssistant: minimize(textOf(recent, 'agentMessage'), 700),
   }
 }

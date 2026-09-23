@@ -3,6 +3,7 @@ import { noul, TypeSafeClient } from '@typesafe-ai/sdk'
 import { readEvidence } from './analysis-evidence'
 import { advise, JEV_MODEL, RUBRIC_VERSION } from './analysis-policy'
 import type { Analysis, Signals } from './analysis-types'
+import type { CodexRpc } from './codex-rpc'
 import type { Task } from './task-types'
 
 const questions = {
@@ -47,9 +48,10 @@ function tokens(value: number): number {
 export async function analyzeWithJev(
   task: Task,
   apiKey: string,
+  rpc: Pick<CodexRpc, 'request'>,
 ): Promise<Analysis> {
   const started = performance.now()
-  const state = await readEvidence(task)
+  const state = await readEvidence(rpc, task)
   const base = {
     taskId: task.id,
     updatedAt: task.updatedAt,

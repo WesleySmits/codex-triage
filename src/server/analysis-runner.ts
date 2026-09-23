@@ -1,5 +1,6 @@
 import { analysisCache } from './analysis-cache-instance'
 import type { Analysis, AnalysisProgress } from './analysis-types'
+import { CodexRpc } from './codex-rpc'
 import { analyzeWithJev } from './jev-analysis'
 import { taskStore } from './task-store-instance'
 import type { Task } from './task-types'
@@ -20,7 +21,12 @@ export class AnalysisRunner {
     private readonly analyze: (
       task: Task,
       apiKey: string,
+      rpc: Pick<CodexRpc, 'request'>,
     ) => Promise<Analysis> = analyzeWithJev,
+    private readonly makeRpc: () => Pick<
+      CodexRpc,
+      'close' | 'connect' | 'request'
+    > = () => new CodexRpc(),
   ) {}
 
   private static emptyProgress(): AnalysisProgress {
@@ -67,9 +73,17 @@ export class AnalysisRunner {
       const byId = new Map(snapshot.tasks.map((task) => [task.id, task]))
       const tasks = ids.map((id) => byId.get(id))
       if (tasks.some((task) => !task)) throw new Error('Selected task is stale')
+      const rpc = this.makeRpc()
+      try {
+        await rpc.connect()
+      } catch (error) {
+        rpc.close()
+        throw error
+      }
       void this.run(
         tasks.filter((task): task is Task => Boolean(task)),
         apiKey,
+        rpc,
       )
       return this.status().progress
     } catch (error) {
@@ -83,34 +97,54 @@ export class AnalysisRunner {
     return this.status().progress
   }
 
-  private async run(tasks: Task[], apiKey: string): Promise<void> {
-    for (
-      let index = 0;
-      index < tasks.length;
-      index += AnalysisRunner.batchSize
-    ) {
-      if (this.cancelRequested) break
-      const batch = tasks.slice(index, index + AnalysisRunner.batchSize)
-      const results = await Promise.allSettled(
-        batch.map((task) => this.analyzeOne(task, apiKey)),
-      )
-      for (const [offset, result] of results.entries()) {
-        this.progress.completed++
-        this.progress.lastCompletedId = batch[offset]?.id ?? null
-        if (result.status === 'rejected') this.progress.failed++
+  private async run(
+    tasks: Task[],
+    apiKey: string,
+    rpc: Pick<CodexRpc, 'close' | 'request'>,
+  ): Promise<void> {
+    try {
+      for (
+        let index = 0;
+        index < tasks.length;
+        index += AnalysisRunner.batchSize
+      ) {
+        if (this.cancelRequested) break
+        const batch = tasks.slice(index, index + AnalysisRunner.batchSize)
+        await this.runBatch(batch, apiKey, rpc)
       }
+    } finally {
+      rpc.close()
+      this.progress.status = this.cancelRequested ? 'cancelled' : 'complete'
+      this.progress.elapsedMs = Math.round(performance.now() - this.startedAt)
     }
-    this.progress.status = this.cancelRequested ? 'cancelled' : 'complete'
-    this.progress.elapsedMs = Math.round(performance.now() - this.startedAt)
   }
 
-  private async analyzeOne(task: Task, apiKey: string): Promise<void> {
+  private async runBatch(
+    batch: Task[],
+    apiKey: string,
+    rpc: Pick<CodexRpc, 'request'>,
+  ): Promise<void> {
+    const results = await Promise.allSettled(
+      batch.map((task) => this.analyzeOne(task, apiKey, rpc)),
+    )
+    for (const [offset, result] of results.entries()) {
+      this.progress.completed++
+      this.progress.lastCompletedId = batch[offset]?.id ?? null
+      if (result.status === 'rejected') this.progress.failed++
+    }
+  }
+
+  private async analyzeOne(
+    task: Task,
+    apiKey: string,
+    rpc: Pick<CodexRpc, 'request'>,
+  ): Promise<void> {
     const cached = await this.cache.get(task)
     if (cached) {
       this.progress.cached++
       return
     }
-    const analysis = await this.analyze(task, apiKey)
+    const analysis = await this.analyze(task, apiKey, rpc)
     await this.cache.save(analysis)
     this.progress.analyzed++
     this.progress.inputTokens += analysis.inputTokens

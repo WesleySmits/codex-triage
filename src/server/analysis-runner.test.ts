@@ -73,7 +73,12 @@ describe('analysis runner', () => {
         return Promise.reject(new Error('synthetic failure'))
       return Promise.resolve(fakeAnalysis(task))
     })
-    const runner = new AnalysisRunner(source, cache, analyze)
+    const rpc = {
+      connect: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn(),
+      request: vi.fn().mockResolvedValue({ data: [] }),
+    }
+    const runner = new AnalysisRunner(source, cache, analyze, () => rpc)
     await runner.start(tasks.map((task) => task.id))
     await vi.waitFor(() => {
       expect(runner.status().progress.status).toBe('complete')
@@ -88,5 +93,7 @@ describe('analysis runner', () => {
       outputTokens: 8,
     })
     expect(cache.save).toHaveBeenCalledTimes(4)
+    expect(rpc.connect).toHaveBeenCalledTimes(1)
+    expect(rpc.close).toHaveBeenCalledTimes(1)
   })
 })
