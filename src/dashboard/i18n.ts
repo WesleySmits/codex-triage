@@ -103,6 +103,8 @@ const messages = {
     confirmRestore: 'Yes, restore',
     archiveWorking: 'Checking current state and applying your choice…',
     archiveUnknownError: 'The request did not return a confirmed result.',
+    archiveStorageLocked:
+      'An archive action is unresolved or browser storage is unavailable.',
     archiveReconcile:
       'Stop here. Refresh the active and archived lists, check the confirmed IDs, and reconcile before another action. Do not retry this request blindly.',
     archiveReconcileActive: '{done} Active list refreshed',
@@ -231,6 +233,8 @@ const messages = {
     confirmRestore: 'Ja, herstel',
     archiveWorking: 'Actuele status controleren en je keuze uitvoeren…',
     archiveUnknownError: 'Het verzoek leverde geen bevestigd resultaat op.',
+    archiveStorageLocked:
+      'Een archiefactie is nog niet afgestemd of browseropslag is niet beschikbaar.',
     archiveReconcile:
       'Stop hier. Ververs de actieve en gearchiveerde lijsten, controleer de bevestigde IDs en stem de status af vóór een volgende actie. Herhaal dit verzoek niet blind.',
     archiveReconcileActive: '{done} Actieve lijst ververst',

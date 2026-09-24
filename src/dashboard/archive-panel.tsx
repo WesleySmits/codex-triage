@@ -1,3 +1,4 @@
+import { ARCHIVE_STORAGE_LOCKED } from './archive-persistence'
 import { needsReconciliation } from './archive-reconciliation'
 import { groupCounts, remainingGroup } from './archive-review'
 import { type Language, translator } from './i18n'
@@ -62,7 +63,11 @@ function ArchiveError({ archive, language }: Props) {
   const t = translator(language)
   return (
     <p className="notice error" role="alert">
-      {t('archiveUnknownError')} {archive.error} {t('archiveReconcile')}
+      {t('archiveUnknownError')}{' '}
+      {archive.error === ARCHIVE_STORAGE_LOCKED
+        ? t('archiveStorageLocked')
+        : archive.error}{' '}
+      {t('archiveReconcile')}
     </p>
   )
 }

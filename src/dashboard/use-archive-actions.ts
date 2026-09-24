@@ -2,6 +2,8 @@ import {
   type Dispatch,
   type RefObject,
   type SetStateAction,
+  useCallback,
+  useEffect,
   useRef,
   useState,
 } from 'react'
@@ -19,11 +21,18 @@ import type {
 } from '../server/task-types'
 import { executeArchive } from './archive-command'
 import {
+  ARCHIVE_SENTINEL_KEY,
+  ARCHIVE_STORAGE_LOCKED,
+  browserArchiveStorage,
+  clearArchivePending,
+  markArchivePending,
+  restoredReconciliation,
+  settleArchiveResult,
+} from './archive-persistence'
+import {
   acknowledge,
   canAcknowledge,
   canStartWrite,
-  clearReconciliation,
-  needsReconciliation,
   type Reconciliation,
   requireReconciliation,
   reviewActive,
@@ -61,15 +70,13 @@ export function useArchiveActions(
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
-  const reconciliation = useArchiveReconciliation(busyRef)
-  const archivedList = useArchivedTasks(
-    busyRef,
+  const reconciliation = useArchiveReconciliation(busyRef, setError)
+  const mountedRef = usePersistentArchiveLock(
+    reconciliation.change,
     setError,
-    () => reconciliation.current.current.required,
-    (startedForReview) => {
-      if (startedForReview) reconciliation.reviewArchived()
-    },
+    setPending,
   )
+  const archivedList = useArchivedReview(busyRef, setError, reconciliation)
 
   function request(target: ArchiveTarget) {
     if (!canStartWrite(reconciliation.current.current, busyRef.current)) return
@@ -103,6 +110,7 @@ export function useArchiveActions(
       confirmArchive({
         pending,
         busyRef,
+        mountedRef,
         reconciliation,
         onSnapshot,
         invalidate: archivedList.invalidate,
@@ -116,9 +124,25 @@ export function useArchiveActions(
   }
 }
 
+function useArchivedReview(
+  busyRef: RefObject<boolean>,
+  setError: Dispatch<SetStateAction<string | null>>,
+  reconciliation: ReturnType<typeof useArchiveReconciliation>,
+) {
+  return useArchivedTasks(
+    busyRef,
+    setError,
+    () => reconciliation.current.current.required,
+    (startedForReview) => {
+      if (startedForReview) reconciliation.reviewArchived()
+    },
+  )
+}
+
 interface ConfirmationContext {
   pending: ArchiveTarget | null
   busyRef: RefObject<boolean>
+  mountedRef: RefObject<boolean>
   reconciliation: ReturnType<typeof useArchiveReconciliation>
   onSnapshot: (snapshot: Snapshot) => void
   invalidate: () => void
@@ -129,16 +153,8 @@ interface ConfirmationContext {
 }
 
 async function confirmArchive(context: ConfirmationContext): Promise<void> {
-  const { pending, busyRef, reconciliation } = context
-  if (
-    !pending ||
-    !canStartWrite(reconciliation.current.current, busyRef.current)
-  )
-    return
-  busyRef.current = true
-  context.setBusy(true)
-  context.setError(null)
-  context.setPending(null)
+  const pending = beginArchive(context)
+  if (!pending) return
   try {
     const result = await executeArchive(pending, {
       archiveTask: (task) => archiveTask({ data: task }),
@@ -146,15 +162,35 @@ async function confirmArchive(context: ConfirmationContext): Promise<void> {
       archiveGroup: (automationId, tasks) =>
         archiveAutomationGroup({ data: { automationId, tasks } }),
     })
-    applyArchiveResult(context, pending, result)
+    if (context.mountedRef.current) applyArchiveResult(context, pending, result)
   } catch (cause) {
     // A lost response may follow a write. Keep the target out of the retry path.
     context.setError(message(cause))
-    reconciliation.require()
+    context.reconciliation.require()
   } finally {
-    busyRef.current = false
+    context.busyRef.current = false
     context.setBusy(false)
   }
+}
+
+function beginArchive(context: ConfirmationContext): ArchiveTarget | null {
+  const { pending, busyRef, reconciliation } = context
+  if (
+    !pending ||
+    !canStartWrite(reconciliation.current.current, busyRef.current)
+  )
+    return null
+  if (!markArchivePending(browserArchiveStorage())) {
+    context.setPending(null)
+    context.setError(ARCHIVE_STORAGE_LOCKED)
+    reconciliation.require()
+    return null
+  }
+  busyRef.current = true
+  context.setBusy(true)
+  context.setError(null)
+  context.setPending(null)
+  return pending
 }
 
 function applyArchiveResult(
@@ -165,20 +201,24 @@ function applyArchiveResult(
   context.onSnapshot(result.snapshot)
   context.setReceipt({ target, result })
   context.invalidate()
-  if (needsReconciliation(result.status) || result.snapshot.error)
+  if (!settleArchiveResult(browserArchiveStorage(), result))
     context.reconciliation.require()
 }
 
-function useArchiveReconciliation(busyRef: RefObject<boolean>) {
-  const [state, setState] = useState(clearReconciliation)
+function useArchiveReconciliation(
+  busyRef: RefObject<boolean>,
+  setError: (error: string | null) => void,
+) {
+  const [state, setState] = useState(requireReconciliation)
   const stateRef = useRef(state)
-  function change(next: Reconciliation) {
+  const change = useCallback((next: Reconciliation) => {
     stateRef.current = next
     setState(next)
-  }
+  }, [])
   return {
     state,
     current: stateRef,
+    change,
     canAcknowledge: canAcknowledge(state),
     require: () => {
       change(requireReconciliation())
@@ -190,9 +230,39 @@ function useArchiveReconciliation(busyRef: RefObject<boolean>) {
       change(reviewActive(stateRef.current, snapshot))
     },
     acknowledge: () => {
-      if (!busyRef.current) change(acknowledge(stateRef.current))
+      if (busyRef.current || !canAcknowledge(stateRef.current)) return
+      if (!clearArchivePending(browserArchiveStorage())) {
+        setError(ARCHIVE_STORAGE_LOCKED)
+        return
+      }
+      change(acknowledge(stateRef.current))
     },
   }
+}
+
+function usePersistentArchiveLock(
+  change: (next: Reconciliation) => void,
+  setError: (error: string | null) => void,
+  setPending: (target: ArchiveTarget | null) => void,
+) {
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    mountedRef.current = true
+    const storage = browserArchiveStorage()
+    change(restoredReconciliation(storage))
+    if (!storage) setError(ARCHIVE_STORAGE_LOCKED)
+    function onStorage(event: StorageEvent) {
+      if (event.key !== ARCHIVE_SENTINEL_KEY && event.key !== null) return
+      setPending(null)
+      change(requireReconciliation())
+    }
+    window.addEventListener('storage', onStorage)
+    return () => {
+      mountedRef.current = false
+      window.removeEventListener('storage', onStorage)
+    }
+  }, [change, setError, setPending])
+  return mountedRef
 }
 
 function useArchivedTasks(
