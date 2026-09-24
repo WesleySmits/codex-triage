@@ -1,6 +1,7 @@
 import type { Task } from '../server/task-types'
 import { type Language, translator } from './i18n'
 import { TaskTable } from './task-table'
+import type { AnalysisControls } from './use-analysis'
 
 interface Props {
   tasks: Task[]
@@ -10,6 +11,7 @@ interface Props {
   currentPage: number
   pageCount: number
   onPage: (page: number) => void
+  analysis: AnalysisControls
 }
 
 export function TaskList({
@@ -20,6 +22,7 @@ export function TaskList({
   currentPage,
   pageCount,
   onPage,
+  analysis,
 }: Props) {
   const t = translator(language)
   const visible = tasks.slice((currentPage - 1) * 25, currentPage * 25)
@@ -41,7 +44,7 @@ export function TaskList({
           {t('results', { count: tasks.length })}
         </span>
       </div>
-      <TaskTable tasks={visible} language={language} />
+      <TaskTable tasks={visible} language={language} analysis={analysis} />
       {tasks.length === 0 && (
         <div className="empty-state">
           <h2>{t('noTasks')}</h2>

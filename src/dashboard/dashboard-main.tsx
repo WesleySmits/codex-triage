@@ -1,7 +1,9 @@
 import type { Snapshot, Task } from '../server/task-types'
+import { AnalysisPanel } from './analysis-panel'
 import { type Language, translator } from './i18n'
 import type { View } from './task-filter'
 import { TaskList } from './task-list'
+import type { AnalysisControls } from './use-analysis'
 
 interface Props {
   snapshot: Snapshot
@@ -15,6 +17,7 @@ interface Props {
   currentPage: number
   pageCount: number
   onPage: (page: number) => void
+  analysis: AnalysisControls
 }
 
 export function DashboardMain({
@@ -29,6 +32,7 @@ export function DashboardMain({
   currentPage,
   pageCount,
   onPage,
+  analysis,
 }: Props) {
   const t = translator(language)
   const heading = headingKey(view)
@@ -57,6 +61,7 @@ export function DashboardMain({
           {t('refreshFailed')}
         </div>
       )}
+      <AnalysisPanel analysis={analysis} language={language} />
       <TaskList
         tasks={tasks}
         language={language}
@@ -65,6 +70,7 @@ export function DashboardMain({
         currentPage={currentPage}
         pageCount={pageCount}
         onPage={onPage}
+        analysis={analysis}
       />
     </main>
   )

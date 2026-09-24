@@ -15,13 +15,13 @@ corepack pnpm install --frozen-lockfile
 corepack pnpm dev
 ```
 
-Open the local URL printed by Vite. The dashboard needs a working local `codex app-server` command to show tasks. It reports a sync error when that source is unavailable. Jev credentials are optional; no analysis runs from this dashboard yet.
+Open the local URL printed by Vite. The dashboard needs a working local `codex app-server` command to show tasks. It reports a sync error when that source is unavailable. Jev credentials are optional; without them, analysis controls remain disabled.
 
 ## Jev analysis backend
 
 For optional Jev analysis, copy `.env.example` to a local `.env` and set `TYPESAFE_API_KEY`, or set it in the server process environment. The key stays on the server and is never sent to the browser. Without a key, analysis cannot start. No TypeSafe request runs on page load or task refresh.
 
-The backend exposes `startAnalysis`, `getAnalysisStatus`, `getAnalyses`, and `cancelAnalysis` server functions for a later dashboard step. `startAnalysis` requires an explicit list of current task IDs. It refreshes Codex state, then processes up to five tasks at a time. The status function reports completed, cached, analyzed, and failed counts, token usage, and elapsed time. A failed task does not stop the rest. Cancellation takes effect after the current batch. Analysis controls are not shown yet.
+The dashboard reads analysis status and cached advice on load and refresh. Select tasks across filters or pages, then click **Analyze selected** to call `startAnalysis` with those task IDs. It refreshes Codex state, then processes up to five tasks at a time. The dashboard shows completed, cached, analyzed, and failed counts, token usage, elapsed time, and current or stale advice. A failed task does not stop the rest. Cancellation takes effect after the current batch. A transient status read error is shown and polling retries while the run is active.
 
 For each selected task, the server reads only the title, opening user request, and latest user and assistant text. It excludes tool output, attachments, and images. Before calling TypeSafe, it removes common links, email addresses, paths, and secret-like strings and caps each field. These are best-effort filters, so review your local task content before enabling external analysis. Jev 1.13 answers three yes/no questions about whether this task or individual automation run is complete, has unresolved action, or is explicitly obsolete. [The v2 rubric](docs/specs/analysis-rubric.md) converts those signals into `keep`, `review`, or `archive` advice. The signal probabilities are advisory and have not been calibrated on your tasks.
 
@@ -47,7 +47,7 @@ The generated route tree is committed so type checking works on a fresh checkout
 
 The server layer in `src/server` connects to `codex app-server --stdio`. It loads active tasks and projects, combines them with local pin and project state, and detects automation IDs in an automation run's opening text. A snapshot stays in server memory until the user explicitly refreshes it. No task data is saved by this project.
 
-Server functions provide snapshot and refresh operations, archived task metadata for unarchive review, individual archive and unarchive, and a group archive operation for one Automation ID. Each write checks fresh local state first and reads the result back. A group call handles at most ten runs. The caller must review the returned snapshot before continuing; `partial` and `uncertain` results require manual reconciliation. The dashboard calls only snapshot and refresh; archive controls and automation grouping belong to later steps.
+Server functions provide snapshot and refresh operations, archived task metadata for unarchive review, individual archive and unarchive, and a group archive operation for one Automation ID. Each write checks fresh local state first and reads the result back. A group call handles at most ten runs. The caller must review the returned snapshot before continuing; `partial` and `uncertain` results require manual reconciliation. The dashboard reads snapshots and cached analysis, and starts or cancels Jev analysis only on explicit user action. Archive controls and automation grouping belong to later steps.
 
 Vite development and preview bind to `127.0.0.1`. Server functions also reject requests whose URL or Host is outside loopback. Run any production server on loopback as well. Only an explicit Jev analysis sends minimized task text to TypeSafe.
 

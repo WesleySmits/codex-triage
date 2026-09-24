@@ -13,6 +13,7 @@ import {
   type View,
 } from './task-filter'
 import { TaskSidebar } from './task-sidebar'
+import type { AnalysisControls } from './use-analysis'
 
 interface Props {
   snapshot: Snapshot
@@ -21,6 +22,7 @@ interface Props {
   onRefresh: () => void
   refreshing: boolean
   refreshFailed: boolean
+  analysis: AnalysisControls
 }
 
 export function DashboardView({
@@ -30,20 +32,9 @@ export function DashboardView({
   onRefresh,
   refreshing,
   refreshFailed,
+  analysis,
 }: Props) {
-  const {
-    view,
-    project,
-    search,
-    viewed,
-    filtered,
-    pageCount,
-    page,
-    setPage,
-    chooseView,
-    chooseProject,
-    changeSearch,
-  } = useDashboardFilters(snapshot, language)
+  const filters = useDashboardFilters(snapshot, language)
   const pinnedCount = snapshot.tasks.filter((task) => task.pinned).length
 
   return (
@@ -59,26 +50,27 @@ export function DashboardView({
         <TaskSidebar
           tasks={snapshot.tasks}
           projects={activeProjects(snapshot)}
-          view={view}
-          project={project}
-          counts={projectCounts(viewed)}
+          view={filters.view}
+          project={filters.project}
+          counts={projectCounts(filters.viewed)}
           pinnedCount={pinnedCount}
           language={language}
-          onView={chooseView}
-          onProject={chooseProject}
+          onView={filters.chooseView}
+          onProject={filters.chooseProject}
         />
         <DashboardMain
           snapshot={snapshot}
           language={language}
-          view={view}
+          view={filters.view}
           pinnedCount={pinnedCount}
           refreshFailed={refreshFailed}
-          tasks={filtered}
-          search={search}
-          onSearch={changeSearch}
-          currentPage={Math.min(page, pageCount)}
-          pageCount={pageCount}
-          onPage={setPage}
+          tasks={filters.filtered}
+          search={filters.search}
+          onSearch={filters.changeSearch}
+          currentPage={Math.min(filters.page, filters.pageCount)}
+          pageCount={filters.pageCount}
+          onPage={filters.setPage}
+          analysis={analysis}
         />
       </div>
     </>
