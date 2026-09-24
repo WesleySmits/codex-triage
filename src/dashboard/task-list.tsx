@@ -1,5 +1,5 @@
 import type { Task } from '../server/task-types'
-import { type Language, translate } from './i18n'
+import { type Language, translator } from './i18n'
 import { TaskTable } from './task-table'
 
 interface Props {
@@ -21,10 +21,7 @@ export function TaskList({
   pageCount,
   onPage,
 }: Props) {
-  const t = (
-    key: Parameters<typeof translate>[1],
-    values?: Record<string, string | number>,
-  ) => translate(language, key, values)
+  const t = translator(language)
   const visible = tasks.slice((currentPage - 1) * 25, currentPage * 25)
   return (
     <>
@@ -75,10 +72,7 @@ function ListFooter({
   pageCount,
   onPage,
 }: FooterProps) {
-  const t = (
-    key: Parameters<typeof translate>[1],
-    values?: Record<string, string | number>,
-  ) => translate(language, key, values)
+  const t = translator(language)
   const range = count
     ? `${String((currentPage - 1) * 25 + 1)}–${String(Math.min(currentPage * 25, count))}`
     : '0'

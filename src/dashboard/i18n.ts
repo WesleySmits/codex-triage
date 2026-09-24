@@ -101,3 +101,8 @@ export function translate(
     String(values[name] ?? `{${name}}`),
   )
 }
+
+export function translator(language: Language) {
+  return (key: MessageKey, values?: Record<string, string | number>) =>
+    translate(language, key, values)
+}

@@ -1,17 +1,17 @@
 import type { Project, Task } from '../server/task-types'
-import { type Language, translate } from './i18n'
-import type { View } from './task-filter'
+import { type Language, translator } from './i18n'
+import type { ProjectFilter, View } from './task-filter'
 
 interface Props {
   tasks: Task[]
   projects: Project[]
   view: View
-  project: string
+  project: ProjectFilter
   counts: Map<string | null, number>
   pinnedCount: number
   language: Language
   onView: (view: View) => void
-  onProject: (project: string) => void
+  onProject: (project: ProjectFilter) => void
 }
 
 interface FilterButtonProps {
@@ -47,10 +47,7 @@ export function TaskSidebar({
   onView,
   onProject,
 }: Props) {
-  const t = (
-    key: Parameters<typeof translate>[1],
-    values?: Record<string, string | number>,
-  ) => translate(language, key, values)
+  const t = translator(language)
   return (
     <nav className="sidebar" aria-label={t('filters')}>
       <div className="nav-label">{t('view')}</div>
@@ -101,10 +98,7 @@ function ProjectFilters({
   language,
   onProject,
 }: ProjectProps) {
-  const t = (
-    key: Parameters<typeof translate>[1],
-    values?: Record<string, string | number>,
-  ) => translate(language, key, values)
+  const t = translator(language)
   const label = (item: Project) =>
     item.name ?? t('unknownProject', { id: item.id.slice(0, 8) })
   const sorted = [...projects].sort((a, b) =>
@@ -114,28 +108,28 @@ function ProjectFilters({
     <>
       <div className="nav-label project-heading">{t('projects')}</div>
       <FilterButton
-        active={project === 'all'}
+        active={project.kind === 'all'}
         label={t('allProjects')}
         onClick={() => {
-          onProject('all')
+          onProject({ kind: 'all' })
         }}
       />
       <FilterButton
-        active={project === 'none'}
+        active={project.kind === 'none'}
         label={t('noProject')}
         count={counts.get(null) ?? 0}
         onClick={() => {
-          onProject('none')
+          onProject({ kind: 'none' })
         }}
       />
       {sorted.map((item) => (
         <FilterButton
           key={item.id}
-          active={project === item.id}
+          active={project.kind === 'project' && project.id === item.id}
           label={label(item)}
           count={counts.get(item.id) ?? 0}
           onClick={() => {
-            onProject(item.id)
+            onProject({ kind: 'project', id: item.id })
           }}
         />
       ))}

@@ -1,5 +1,5 @@
 import type { Snapshot, Task } from '../server/task-types'
-import { type Language, translate } from './i18n'
+import { type Language, translator } from './i18n'
 import type { View } from './task-filter'
 import { TaskList } from './task-list'
 
@@ -30,7 +30,7 @@ export function DashboardMain({
   pageCount,
   onPage,
 }: Props) {
-  const t = (key: Parameters<typeof translate>[1]) => translate(language, key)
+  const t = translator(language)
   const heading = headingKey(view)
   return (
     <main id="task-list" className="main-content" tabIndex={-1}>

@@ -1,4 +1,4 @@
-import { type Language, translate } from './i18n'
+import { type Language, translator } from './i18n'
 
 interface Props {
   language: Language
@@ -15,10 +15,7 @@ export function DashboardHeader({
   onRefresh,
   refreshing,
 }: Props) {
-  const t = (
-    key: Parameters<typeof translate>[1],
-    values?: Record<string, string | number>,
-  ) => translate(language, key, values)
+  const t = translator(language)
   const time = refreshedAt ? formatTime(refreshedAt, language) : null
   return (
     <>

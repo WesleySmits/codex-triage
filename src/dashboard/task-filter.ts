@@ -1,6 +1,8 @@
 import type { Snapshot, Task } from '../server/task-types'
 
 export type View = 'all' | 'pinned' | 'unpinned'
+export type ProjectFilter =
+  { kind: 'all' } | { kind: 'none' } | { kind: 'project'; id: string }
 
 export function tasksInView(tasks: Task[], view: View): Task[] {
   if (view === 'pinned') return tasks.filter((task) => task.pinned)
@@ -17,21 +19,21 @@ export function projectCounts(tasks: Task[]): Map<string | null, number> {
 
 export function filterTasks(
   tasks: Task[],
-  projectId: string,
+  project: ProjectFilter,
   search: string,
   language: string,
 ): Task[] {
   const needle = search.trim().toLocaleLowerCase(language)
   return tasks.filter(
     (task) =>
-      matchesProject(task, projectId) && matchesSearch(task, needle, language),
+      matchesProject(task, project) && matchesSearch(task, needle, language),
   )
 }
 
-function matchesProject(task: Task, projectId: string): boolean {
-  if (projectId === 'all') return true
-  if (projectId === 'none') return task.projectId === null
-  return task.projectId === projectId
+function matchesProject(task: Task, project: ProjectFilter): boolean {
+  if (project.kind === 'all') return true
+  if (project.kind === 'none') return task.projectId === null
+  return task.projectId === project.id
 }
 
 function matchesSearch(task: Task, needle: string, language: string): boolean {

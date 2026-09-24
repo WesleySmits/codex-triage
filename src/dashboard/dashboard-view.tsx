@@ -8,6 +8,7 @@ import {
   activeProjects,
   filterTasks,
   projectCounts,
+  type ProjectFilter,
   tasksInView,
   type View,
 } from './task-filter'
@@ -86,7 +87,7 @@ export function DashboardView({
 
 function useDashboardFilters(snapshot: Snapshot, language: Language) {
   const [view, setView] = useState<View>('all')
-  const [project, setProject] = useState('all')
+  const [project, setProject] = useState<ProjectFilter>({ kind: 'all' })
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const viewed = tasksInView(snapshot.tasks, view)
@@ -101,7 +102,7 @@ function useDashboardFilters(snapshot: Snapshot, language: Language) {
     setView(next)
     setPage(1)
   }
-  function chooseProject(next: string) {
+  function chooseProject(next: ProjectFilter) {
     setProject(next)
     setPage(1)
   }

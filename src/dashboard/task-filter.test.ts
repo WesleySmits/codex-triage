@@ -45,13 +45,50 @@ describe('task filters', () => {
 
   it('combines project and title search without losing projectless tasks', () => {
     expect(
-      filterTasks(tasks, 'a', 'beta', 'en-US').map((task) => task.id),
+      filterTasks(tasks, { kind: 'project', id: 'a' }, 'beta', 'en-US').map(
+        (task) => task.id,
+      ),
     ).toEqual(['2'])
     expect(
-      filterTasks(tasks, 'none', '', 'en-US').map((task) => task.id),
+      filterTasks(tasks, { kind: 'none' }, '', 'en-US').map((task) => task.id),
     ).toEqual(['3'])
     expect(
-      filterTasks(tasks, 'all', 'north', 'en-US').map((task) => task.id),
+      filterTasks(tasks, { kind: 'all' }, 'north', 'en-US').map(
+        (task) => task.id,
+      ),
     ).toEqual(['1', '2'])
+  })
+
+  it('can select projects whose IDs match filter labels', () => {
+    const task = (id: string, projectId: string | null): Task => ({
+      id,
+      projectId,
+      title: id,
+      createdAt: 1,
+      updatedAt: 2,
+      pinned: false,
+      projectName: null,
+      automationId: null,
+    })
+    const special: Task[] = [
+      task('all-project', 'all'),
+      task('none-project', 'none'),
+      task('projectless', null),
+    ]
+    expect(
+      filterTasks(special, { kind: 'project', id: 'all' }, '', 'en-US').map(
+        (task) => task.id,
+      ),
+    ).toEqual(['all-project'])
+    expect(
+      filterTasks(special, { kind: 'project', id: 'none' }, '', 'en-US').map(
+        (task) => task.id,
+      ),
+    ).toEqual(['none-project'])
+    expect(
+      filterTasks(special, { kind: 'none' }, '', 'en-US').map(
+        (task) => task.id,
+      ),
+    ).toEqual(['projectless'])
   })
 })
