@@ -1,11 +1,76 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
 
-export const Route = createFileRoute('/')({ component: Home })
+import { DashboardView } from '../dashboard/dashboard-view'
+import type { Language } from '../dashboard/i18n'
+import { getTaskSnapshot, refreshTaskSnapshot } from '../server/functions'
+import type { Snapshot } from '../server/task-types'
 
-function Home() {
+export const Route = createFileRoute('/')({
+  loader: () => getTaskSnapshot(),
+  component: Dashboard,
+})
+
+function Dashboard() {
+  const [snapshot, setSnapshot] = useState<Snapshot>(Route.useLoaderData())
+  const [language, setLanguage] = useState<Language>('en')
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshFailed, setRefreshFailed] = useState(false)
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setLanguage(readLanguage())
+    })
+    return () => {
+      window.cancelAnimationFrame(frame)
+    }
+  }, [])
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
+
+  function changeLanguage(next: Language) {
+    setLanguage(next)
+    try {
+      window.localStorage.setItem('codex-triage-language', next)
+    } catch {
+      /* Current selection still works without storage. */
+    }
+  }
+
+  async function refresh() {
+    setRefreshing(true)
+    setRefreshFailed(false)
+    try {
+      setSnapshot(await refreshTaskSnapshot())
+    } catch {
+      setRefreshFailed(true)
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   return (
-    <main>
-      <h1>Codex Triage</h1>
-    </main>
+    <DashboardView
+      snapshot={snapshot}
+      language={language}
+      onLanguageChange={changeLanguage}
+      onRefresh={() => {
+        void refresh()
+      }}
+      refreshing={refreshing}
+      refreshFailed={refreshFailed}
+    />
   )
+}
+
+function readLanguage(): Language {
+  if (typeof window === 'undefined') return 'en'
+  try {
+    return window.localStorage.getItem('codex-triage-language') === 'nl'
+      ? 'nl'
+      : 'en'
+  } catch {
+    return 'en'
+  }
 }
