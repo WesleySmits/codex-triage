@@ -1,8 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
 
+import { analysisCache } from './analysis-cache-instance'
+import { parseAnalysisIds } from './analysis-input'
+import { analysisRunner } from './analysis-runner-instance'
 import { parseArchiveGroup, parseExpectedTask } from './archive-input'
 import { assertLocalRequest } from './local-request'
-import { taskStore } from './task-store'
+import { taskStore } from './task-store-instance'
 
 export const getTaskSnapshot = createServerFn({ method: 'GET' }).handler(
   async () => {
@@ -45,3 +48,30 @@ export const archiveAutomationGroup = createServerFn({ method: 'POST' })
     assertLocalRequest()
     return taskStore.archiveAutomationGroup(data.automationId, data.tasks)
   })
+
+export const getAnalysisStatus = createServerFn({ method: 'GET' }).handler(
+  () => {
+    assertLocalRequest()
+    return analysisRunner.status()
+  },
+)
+
+export const getAnalyses = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    assertLocalRequest()
+    const snapshot = await taskStore.snapshot()
+    return analysisCache.views(snapshot.tasks)
+  },
+)
+
+export const startAnalysis = createServerFn({ method: 'POST' })
+  .validator(parseAnalysisIds)
+  .handler(async ({ data }) => {
+    assertLocalRequest()
+    return analysisRunner.start(data)
+  })
+
+export const cancelAnalysis = createServerFn({ method: 'POST' }).handler(() => {
+  assertLocalRequest()
+  return analysisRunner.cancel()
+})
