@@ -26,7 +26,7 @@ import {
   browserArchiveStorage,
   clearArchivePending,
   markArchivePending,
-  restoredReconciliation,
+  restoreArchiveLock,
   settleArchiveResult,
 } from './archive-persistence'
 import {
@@ -52,6 +52,7 @@ export interface ArchiveControls {
   archived: ExpectedTask[]
   archivedLoaded: boolean
   reconciliation: Reconciliation
+  storageChecked: boolean
   canAcknowledge: boolean
   acknowledgeReconciliation: () => void
   reviewedActiveSnapshot: (snapshot: Snapshot) => void
@@ -71,7 +72,7 @@ export function useArchiveActions(
   const busyRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
   const reconciliation = useArchiveReconciliation(busyRef, setError)
-  const mountedRef = usePersistentArchiveLock(
+  const archiveLock = usePersistentArchiveLock(
     reconciliation.change,
     setError,
     setPending,
@@ -99,6 +100,7 @@ export function useArchiveActions(
     archived: archivedList.archived,
     archivedLoaded: archivedList.loaded,
     reconciliation: reconciliation.state,
+    storageChecked: archiveLock.storageChecked,
     canAcknowledge: reconciliation.canAcknowledge,
     acknowledgeReconciliation: reconciliation.acknowledge,
     reviewedActiveSnapshot: reconciliation.reviewActive,
@@ -110,7 +112,7 @@ export function useArchiveActions(
       confirmArchive({
         pending,
         busyRef,
-        mountedRef,
+        mountedRef: archiveLock.mountedRef,
         reconciliation,
         onSnapshot,
         invalidate: archivedList.invalidate,
@@ -246,11 +248,14 @@ function usePersistentArchiveLock(
   setPending: (target: ArchiveTarget | null) => void,
 ) {
   const mountedRef = useRef(false)
+  const [storageChecked, setStorageChecked] = useState(false)
   useEffect(() => {
     mountedRef.current = true
     const storage = browserArchiveStorage()
-    change(restoredReconciliation(storage))
-    if (!storage) setError(ARCHIVE_STORAGE_LOCKED)
+    const restored = restoreArchiveLock(storage)
+    change(restored.reconciliation)
+    if (restored.storageLocked) setError(ARCHIVE_STORAGE_LOCKED)
+    setStorageChecked(true)
     function onStorage(event: StorageEvent) {
       if (event.key !== ARCHIVE_SENTINEL_KEY && event.key !== null) return
       setPending(null)
@@ -262,7 +267,7 @@ function usePersistentArchiveLock(
       window.removeEventListener('storage', onStorage)
     }
   }, [change, setError, setPending])
-  return mountedRef
+  return { mountedRef, storageChecked }
 }
 
 function useArchivedTasks(

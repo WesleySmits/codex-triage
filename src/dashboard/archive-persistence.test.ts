@@ -6,6 +6,7 @@ import {
   clearArchivePending,
   hasPendingArchive,
   markArchivePending,
+  restoreArchiveLock,
   restoredReconciliation,
   settleArchiveResult,
 } from './archive-persistence'
@@ -108,6 +109,15 @@ describe('archive marker failures', () => {
     expect(markArchivePending(saved)).toBe(false)
     expect(restoredReconciliation(saved).required).toBe(true)
     expect(restoredReconciliation(broken).required).toBe(true)
+    const blocked = restoreArchiveLock(broken)
+    expect(blocked.storageLocked).toBe(true)
+    expect(blocked.reconciliation.required).toBe(true)
+    const pending = restoreArchiveLock(saved)
+    expect(pending.storageLocked).toBe(false)
+    expect(pending.reconciliation.required).toBe(true)
+    const clear = restoreArchiveLock(storage())
+    expect(clear.storageLocked).toBe(false)
+    expect(clear.reconciliation.required).toBe(false)
   })
 
   it('does not start a duplicate provider write while a marker exists', () => {

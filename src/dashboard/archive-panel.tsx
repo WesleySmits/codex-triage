@@ -131,7 +131,7 @@ function ReceiptReconciliation({
 }
 
 function ReconciliationReview({ archive, language }: Props) {
-  if (!archive.reconciliation.required) return null
+  if (!archive.storageChecked || !archive.reconciliation.required) return null
   const t = translator(language)
   return (
     <div
