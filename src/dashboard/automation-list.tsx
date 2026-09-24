@@ -2,6 +2,7 @@ import type { AnalysisView } from '../server/analysis-types'
 import type { Task } from '../server/task-types'
 import { AdviceValue } from './analysis-advice'
 import type { AutomationGroup } from './automation-groups'
+import { signalKey } from './automation-signals'
 import { type Language, translator } from './i18n'
 import type { AnalysisControls } from './use-analysis'
 
@@ -106,13 +107,15 @@ function AutomationSummary({
         <AdviceValue view={views.get(group.latest.id)} language={language} />
       </div>
       <div>
-        <span className="field-label">{t('newSignals')}</span>
-        {group.newSignals.length ? (
+        <span className="field-label">{t('additionalSignals')}</span>
+        {group.additionalSignals.length ? (
           <strong>
-            {group.newSignals.map((name) => t(signalKey(name))).join(', ')}
+            {group.additionalSignals
+              .map((name) => t(signalKey(name)))
+              .join(', ')}
           </strong>
         ) : (
-          <span className="muted">{t('noNewSignals')}</span>
+          <span className="muted">{t('noAdditionalSignals')}</span>
         )}
       </div>
     </div>
@@ -165,12 +168,4 @@ function formatDate(task: Task, language: Language): string {
     month: 'short',
     year: 'numeric',
   }).format(new Date(task.createdAt * 1000))
-}
-
-function signalKey(
-  name: string,
-): 'signalCompleted' | 'signalOpenAction' | 'signalObsolete' {
-  if (name === 'completed') return 'signalCompleted'
-  if (name === 'openAction') return 'signalOpenAction'
-  return 'signalObsolete'
 }

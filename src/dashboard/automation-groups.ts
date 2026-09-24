@@ -1,11 +1,12 @@
 import type { AnalysisView } from '../server/analysis-types'
 import type { Task } from '../server/task-types'
+import { signalNames, type SignalType } from './automation-signals'
 
 export interface AutomationGroup {
   id: string
   latest: Task
   runs: Task[]
-  newSignals: string[]
+  additionalSignals: SignalType[]
 }
 
 const validId = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/
@@ -37,14 +38,14 @@ export function automationGroups(
       const runs = sorted.filter((task) => visibleIds.has(task.id))
       if (runs.length === 0) return []
       const latestSignals = signalNames(current.get(latest.id)?.signals)
-      const newSignals = new Set<string>()
+      const additionalSignals = new Set<SignalType>()
       for (const run of runs) {
         if (run.id === latest.id) continue
         for (const signal of signalNames(current.get(run.id)?.signals)) {
-          if (!latestSignals.has(signal)) newSignals.add(signal)
+          if (!latestSignals.has(signal)) additionalSignals.add(signal)
         }
       }
-      return [{ id, latest, runs, newSignals: [...newSignals] }]
+      return [{ id, latest, runs, additionalSignals: [...additionalSignals] }]
     })
     .sort((a, b) => newestFirst(a.latest, b.latest))
 }
@@ -55,15 +56,4 @@ function newestFirst(a: Task, b: Task): number {
     b.updatedAt - a.updatedAt ||
     a.id.localeCompare(b.id)
   )
-}
-
-function signalNames(
-  signals: AnalysisView['analysis']['signals'] | undefined,
-): Set<string> {
-  if (!signals) return new Set()
-  const names = new Set<string>()
-  if (signals.completed >= 0.7) names.add('completed')
-  if (signals.openAction >= 0.7) names.add('openAction')
-  if ('obsolete' in signals && signals.obsolete >= 0.7) names.add('obsolete')
-  return names
 }

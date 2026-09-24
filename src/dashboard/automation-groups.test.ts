@@ -81,12 +81,12 @@ describe('automation groups', () => {
       view('older', 'current', 0.91),
       view('other', 'stale', 0.95),
     ])
-    expect(current[0]?.newSignals).toEqual(['openAction'])
+    expect(current[0]?.additionalSignals).toEqual(['openAction'])
     const stale = automationGroups(tasks, tasks, [
       view('newest', 'current', 0.1),
       view('older', 'stale', 0.91),
     ])
-    expect(stale[0]?.newSignals).toEqual([])
+    expect(stale[0]?.additionalSignals).toEqual([])
   })
 
   it('applies project and search filters to matching run counts', () => {
