@@ -1,13 +1,23 @@
 # Codex Triage
 
-Codex Triage is an open-source project for reviewing and organizing Codex tasks locally. The dashboard lists active tasks from the local Codex app-server, with project and pin filters, search, and pagination. English is the default; Dutch is optional.
+Codex Triage is a local dashboard for reviewing your Codex tasks. It reads the Codex app-server on your computer, helps you find tasks and automation runs, and makes archiving a deliberate, reviewable action. Optional Jev analysis offers advice for tasks you select.
 
-## Requirements
+## What it does
 
-- Node.js 24
-- pnpm 12.5.1 via Corepack
+- Lists active tasks with search, project and pin filters, pagination, and English or Dutch labels.
+- Groups runs of the same automation so you can review the group and its individual runs.
+- Shows optional Keep, Review, or Archive advice with progress, token use, cached results, and stale-result labels. You choose which tasks to analyze.
+- Lets you confirm individual archive and restore actions. A group archive handles at most ten runs per confirmation and asks you to review the next batch. Writes use fresh-state checks and readback. Uncertain outcomes lock further actions until you refresh both lists and acknowledge reconciliation.
 
-## Local setup
+## Current limits
+
+- This is a local app, not a hosted task sync service. It needs a working `codex app-server --stdio` command and access to your Codex state as the same operating-system user.
+- Jev advice is optional and uncalibrated. It never archives a task for you. Text minimization before an external analysis request is best effort, so review what you select.
+- Archive and restore need your confirmation. The app does not automatically archive old runs or resolve an uncertain write for you.
+
+## Run locally
+
+Use Node.js 24 and the pnpm version pinned in `package.json` (currently 12.5.1) through Corepack. Make sure `codex` is on your `PATH` and can run `codex app-server --stdio` for the same user who owns your Codex tasks.
 
 ```sh
 corepack enable
@@ -15,50 +25,21 @@ corepack pnpm install --frozen-lockfile
 corepack pnpm dev
 ```
 
-Open the local URL printed by Vite. The dashboard needs a working local `codex app-server` command to show tasks. It reports a sync error when that source is unavailable. Jev credentials are optional; without them, analysis controls remain disabled.
+Open the loopback URL printed by Vite, normally `http://127.0.0.1:5173/`. Development and preview bind to `127.0.0.1`; keep any production server on loopback too. If the dashboard shows a sync error, check Codex app-server access and local filesystem or sandbox permissions. See the [installation and troubleshooting guide](docs/installation.md). The local Codex state reader has a 32 MiB file limit.
 
-See the [installation guide](docs/installation.md) for the complete local setup, archive reconciliation, and troubleshooting steps. Read the [privacy guide](docs/privacy.md) before selecting tasks for external Jev analysis.
+## Optional Jev analysis
 
-## Jev analysis backend
+Copy `.env.example` to `.env` and set `TYPESAFE_API_KEY`, or provide the key in the server process environment. Keep it out of commits and logs. Without a key, analysis is disabled. With a key, selecting tasks and clicking **Analyze selected** sends bounded text from only those tasks to TypeSafe. Page load, refresh, search, and archive review do not start Jev analysis.
 
-For optional Jev analysis, copy `.env.example` to a local `.env` and set `TYPESAFE_API_KEY`, or set it in the server process environment. The key stays on the server and is never sent to the browser. Without a key, analysis cannot start. No TypeSafe request runs on page load or task refresh.
+The server excludes tools, attachments, and images, and removes common links and identifiers before sending text. This filtering can miss sensitive content. Advice and task IDs are cached in ignored local `.data/analysis-v1.json`; message text is not saved there. Read the [privacy guide](docs/privacy.md) before enabling analysis. The [analysis rubric](docs/specs/analysis-rubric.md) explains how signals become advice.
 
-The dashboard reads analysis status and cached advice on load and refresh. Select tasks across filters or pages, then click **Analyze selected** to call `startAnalysis` with those task IDs. It refreshes Codex state, then processes up to five tasks at a time. The dashboard shows completed, cached, analyzed, and failed counts, token usage, elapsed time, and current or stale advice. A failed task does not stop the rest. Cancellation takes effect after the current batch. A transient status read error is shown and polling retries while the run is active.
+## Reviewed archive actions
 
-For each selected task, the server reads only the title, opening user request, and latest user and assistant text. It excludes tool output, attachments, and images. Before calling TypeSafe, it removes common links, email addresses, paths, and secret-like strings and caps each field. These are best-effort filters, so review your local task content before enabling external analysis. Jev 1.13 answers three yes/no questions about whether this task or individual automation run is complete, has unresolved action, or is explicitly obsolete. [The v2 rubric](docs/specs/analysis-rubric.md) converts those signals into `keep`, `review`, or `archive` advice. The signal probabilities are advisory and have not been calibrated on your tasks.
+**Archive** opens a review of the task identity and pin status; confirmation is a separate click. **Archive all runs** includes the newest and pinned runs in the group. The Archived view loads on request and offers individual restore with confirmation. Before any write, the browser saves a task-free pending marker. If a response is lost or a result is uncertain, the marker blocks another write across page reloads until you refresh the active and archived lists and acknowledge reconciliation. A reload does not preserve the receipt or confirmed IDs. Compare current task states before acting again.
 
-Results contain no message text and are stored only in ignored local `.data/analysis-v1.json`. They become stale when a task changes, its pin state changes, the model changes, or the advice rules are versioned again. Reanalyzing a current result uses the cache and spends no Jev tokens. Analysis has no archive operation. Archiving still requires a separate user-confirmed action.
+## Contributing
 
-## Checks
-
-```sh
-corepack pnpm typecheck
-corepack pnpm lint
-corepack pnpm format:check
-corepack pnpm fallow
-corepack pnpm build
-```
-
-ESLint enforces strict and stylistic type rules, import order, and small, simple files and functions. TypeScript checks unused names, return paths, and optional properties. Fallow checks dependency hygiene, code health, and duplication across the project. Lefthook runs staged lint and format checks and Fallow before commits, then Commitlint checks commit messages. Hooks check only; use `corepack pnpm lint:fix` or `corepack pnpm format` to apply fixes.
-
-Class files contain one class plus imports and type declarations. Runtime helpers, schemas, and singleton instances live in separate modules. A local ESLint rule checks this for source and test files.
-
-The generated route tree is committed so type checking works on a fresh checkout.
-
-## Local Codex data
-
-The server layer in `src/server` connects to `codex app-server --stdio`. It loads active tasks and projects, combines them with local pin and project state, and detects automation IDs in an automation run's opening text. A snapshot stays in server memory until the user explicitly refreshes it. Optional analysis stores task IDs and advice, without message text, in an ignored local cache; see the [privacy guide](docs/privacy.md).
-
-Server functions provide snapshot and refresh operations, archived task metadata for unarchive review, individual archive and unarchive, and a group archive operation for one Automation ID. Each write checks fresh local state first and reads the result back. A group call handles at most ten runs. The caller must review the returned snapshot before continuing. Before any write, the browser saves a task-free pending marker; `partial`, `uncertain`, `stale`, `busy`, lost responses, or page unloads keep archive actions locked across reload until both lists are refreshed and the user acknowledges reconciliation. The dashboard reads snapshots and cached analysis, and starts or cancels Jev analysis only on explicit user action. It groups active automation runs by validated Automation ID and offers reviewed archive and restore controls.
-
-Vite development and preview bind to `127.0.0.1`. Server functions also reject requests whose URL or Host is outside loopback. Run any production server on loopback as well. Only an explicit Jev analysis sends minimized task text to TypeSafe.
-
-The server code is split by responsibility:
-
-- `codex-rpc.ts` owns the app-server process, request lifecycle, and pagination limits. `codex-protocol.ts` parses replies without process state. `codex-client.ts` maps task operations to RPC calls.
-- `local-codex-state.ts` reads the bounded local state file. `task-normalization.ts` combines that state with Codex task and project listings.
-- `archive-policy.ts` checks expected task versions and Automation ID groups. `archive-operations.ts` performs writes and readback. `task-store.ts` owns only the in-memory snapshot and mutation lock; `task-store-instance.ts` creates the shared instance.
-- `archive-input.ts` validates write inputs, `local-request.ts` enforces loopback requests, and `functions.ts` exposes the TanStack server functions.
+Open a focused pull request with a clear description and run `corepack pnpm check` before submitting. That command covers TypeScript, lint, formatting, tests, Fallow, and the build. Use synthetic task data in tests and reports; do not include your Codex task text, API keys, or local cache. The repo uses conventional commit titles such as `fix(ui): explain an uncertain result`.
 
 ## License
 
