@@ -12,8 +12,8 @@ interface Props {
   language: Language
   onView: (view: View) => void
   onProject: (project: ProjectFilter) => void
-  screen: 'tasks' | 'automations'
-  onScreen: (screen: 'tasks' | 'automations') => void
+  screen: 'tasks' | 'automations' | 'archived'
+  onScreen: (screen: 'tasks' | 'automations' | 'archived') => void
   automationCount: number
 }
 
@@ -120,6 +120,13 @@ function ScreenFilters({
         count={automationCount}
         onClick={() => {
           onScreen('automations')
+        }}
+      />
+      <FilterButton
+        active={screen === 'archived'}
+        label={t('archivedTasks')}
+        onClick={() => {
+          onScreen('archived')
         }}
       />
     </>

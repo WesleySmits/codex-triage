@@ -3,14 +3,16 @@ import type { Task } from '../server/task-types'
 import { AdviceValue } from './analysis-advice'
 import { type Language, translate, translator } from './i18n'
 import type { AnalysisControls } from './use-analysis'
+import type { ArchiveControls } from './use-archive-actions'
 
 interface Props {
   tasks: Task[]
   language: Language
   analysis: AnalysisControls
+  archive: ArchiveControls
 }
 
-export function TaskTable({ tasks, language, analysis }: Props) {
+export function TaskTable({ tasks, language, analysis, archive }: Props) {
   const t = translator(language)
   const byId = new Map(analysis.views.map((view) => [view.taskId, view]))
   return (
@@ -27,6 +29,7 @@ export function TaskTable({ tasks, language, analysis }: Props) {
             <th scope="col">{t('updated')}</th>
             <th scope="col">{t('status')}</th>
             <th scope="col">{t('advice')}</th>
+            <th scope="col">{t('archiveAction')}</th>
           </tr>
         </thead>
         <tbody>
@@ -38,6 +41,7 @@ export function TaskTable({ tasks, language, analysis }: Props) {
               view={byId.get(task.id)}
               selected={analysis.selected.includes(task.id)}
               onToggle={analysis.toggle}
+              archive={archive}
             />
           ))}
         </tbody>
@@ -52,9 +56,17 @@ interface RowProps {
   view: AnalysisView | undefined
   selected: boolean
   onToggle: (id: string) => void
+  archive: ArchiveControls
 }
 
-function TaskRow({ task, language, view, selected, onToggle }: RowProps) {
+function TaskRow({
+  task,
+  language,
+  view,
+  selected,
+  onToggle,
+  archive,
+}: RowProps) {
   const t = translator(language)
   const date = new Intl.DateTimeFormat(language === 'nl' ? 'nl-NL' : 'en-US', {
     day: 'numeric',
@@ -99,7 +111,34 @@ function TaskRow({ task, language, view, selected, onToggle }: RowProps) {
         <span className="mobile-label">{t('advice')} · </span>
         <AdviceValue view={view} language={language} />
       </td>
+      <td className="archive-cell">
+        <TaskArchiveButton task={task} archive={archive} language={language} />
+      </td>
     </tr>
+  )
+}
+
+function TaskArchiveButton({
+  task,
+  archive,
+  language,
+}: {
+  task: Task
+  archive: ArchiveControls
+  language: Language
+}) {
+  const t = translator(language)
+  return (
+    <button
+      className="button secondary"
+      type="button"
+      disabled={archive.busy}
+      onClick={() => {
+        archive.request({ kind: 'task', task })
+      }}
+    >
+      {t('archiveAction')}
+    </button>
   )
 }
 
