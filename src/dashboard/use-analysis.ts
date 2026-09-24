@@ -8,6 +8,7 @@ import {
   startAnalysis,
 } from '../server/functions'
 import type { Task } from '../server/task-types'
+import { type AnalysisReadout, startAnalysisPolling } from './analysis-polling'
 import {
   analysisRequestIds,
   availableSelection,
@@ -52,15 +53,8 @@ export function useAnalysis(tasks: Task[]): AnalysisControls {
   }, [tasks])
 
   useEffect(() => {
-    void Promise.all([getAnalysisStatus(), getAnalyses()])
-      .then(([nextStatus, nextViews]) => {
-        setStatus(nextStatus)
-        setViews(nextViews)
-      })
-      .catch((cause: unknown) => {
-        setError(errorMessage(cause))
-      })
-  }, [])
+    void loadAnalysis(setStatus, setViews, setError)
+  }, [setStatus, setViews, setError])
 
   useAnalysisPolling(state)
   const { start, cancel, reload } = useAnalysisActions(tasks, selected, state)
@@ -87,29 +81,16 @@ function useAnalysisPolling(state: AnalysisState) {
   const { status, setStatus, setViews, setError } = state
   useEffect(() => {
     if (status?.progress.status !== 'running') return
-    let stopped = false
-    let timer: ReturnType<typeof setTimeout>
-    async function poll() {
-      try {
-        const next = await getAnalysisStatus()
-        if (stopped) return
-        setStatus(next)
-        setViews(await getAnalyses())
-        if (next.progress.status === 'running')
-          timer = setTimeout(() => {
-            void poll()
-          }, 1000)
-      } catch (cause) {
+    return startAnalysisPolling({
+      read: readAnalysis,
+      onResult: (readout) => {
+        setStatus(readout.status)
+        setViews(readout.views)
+      },
+      onError: (cause) => {
         setError(errorMessage(cause))
-      }
-    }
-    timer = setTimeout(() => {
-      void poll()
-    }, 1000)
-    return () => {
-      stopped = true
-      clearTimeout(timer)
-    }
+      },
+    })
   }, [status?.progress.status])
 }
 
@@ -120,16 +101,7 @@ function useAnalysisActions(
 ) {
   const { status, setStatus, setViews, setError, busy, setBusy } = state
   async function reload() {
-    try {
-      const [nextStatus, nextViews] = await Promise.all([
-        getAnalysisStatus(),
-        getAnalyses(),
-      ])
-      setStatus(nextStatus)
-      setViews(nextViews)
-    } catch (cause) {
-      setError(errorMessage(cause))
-    }
+    await loadAnalysis(setStatus, setViews, setError)
   }
 
   async function start() {
@@ -164,6 +136,28 @@ function useAnalysisActions(
   }
 
   return { start, cancel, reload }
+}
+
+async function readAnalysis(): Promise<AnalysisReadout> {
+  const [status, views] = await Promise.all([
+    getAnalysisStatus(),
+    getAnalyses(),
+  ])
+  return { status, views }
+}
+
+async function loadAnalysis(
+  setStatus: Setter<Status | null>,
+  setViews: Setter<AnalysisView[]>,
+  setError: Setter<string | null>,
+): Promise<void> {
+  try {
+    const readout = await readAnalysis()
+    setStatus(readout.status)
+    setViews(readout.views)
+  } catch (cause) {
+    setError(errorMessage(cause))
+  }
 }
 
 function errorMessage(cause: unknown): string {
