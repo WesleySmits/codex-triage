@@ -37,25 +37,27 @@ All examples are fictional and sanitized. The expected outcome is a policy check
 | 11  | Completion and remaining work are both ambiguous                     | Review   |
 | 12  | Closure looks strong, but absence of open action is weak             | Review   |
 
-The policy test uses these twelve cases. It has **zero false Archive classifications against these labels** (3 Archive, 3 Keep, 6 Review). This does not measure Jev classification quality. A real sample still needs owner-reviewed labels and v2 Jev outputs before any accuracy claim or threshold relaxation.
+The policy test uses these twelve cases. It has **zero false Archive classifications against these labels** (3 Archive, 3 Keep, 6 Review). This does not measure Jev classification quality. A real sample still needs owner-reviewed labels before any accuracy claim or threshold relaxation.
 
-## Read-only local sample awaiting v2 Jev comparison
+## Bounded v2 Jev comparison
 
-A bounded local review used the existing private v1 cache and the opening/latest Codex text. The table contains only abstracted evidence; no task text, ID, or model input is committed. The case-to-task mapping is retained only in ignored local `.data/pr6-manual-sample.json` for a later authorized comparison. These are provisional human task-local labels, pending owner review. Old v1 advice is shown to expose where broad relevance kept finished runs open.
+A bounded local review first used the private v1 cache and the opening/latest Codex text. With owner permission, the same nine selected tasks were then tested against Jev v2. The table contains only abstracted evidence and advice; no task text, ID, or model input is committed. The case-to-task mapping and numeric signals remain in ignored local `.data/`. Labels are provisional agent judgments, **not owner-reviewed ground truth**. Old v1 advice shows where broad relevance kept finished runs open.
 
-| Case | Abstracted evidence                                         | Old v1 advice | Provisional label |
-| ---- | ----------------------------------------------------------- | ------------- | ----------------- |
-| S1   | Requested document was delivered                            | Archive       | Archive           |
-| S2   | Recurring run finished and reported its result              | Archive       | Archive           |
-| S3   | Daily run finished; a stock warning remains for future work | Keep          | Archive           |
-| S4   | Reminder was delivered; the external case remains open      | Keep          | Archive           |
-| S5   | Scanner waits for the user's login handoff                  | Keep          | Keep              |
-| S6   | Requested background automation is still unconfigured       | Keep          | Keep              |
-| S7   | No opening or latest message was available                  | Review        | Review            |
-| S8   | Another task also lacked usable messages                    | Review        | Review            |
-| S9   | Publishing failed and the task is pinned                    | Keep          | Review            |
+| Case | Abstracted evidence                                         | Old v1  | Initial v2 | After fix               | Provisional label |
+| ---- | ----------------------------------------------------------- | ------- | ---------- | ----------------------- | ----------------- |
+| S1   | Requested document was delivered                            | Archive | Review     | Review                  | Archive           |
+| S2   | Recurring run finished and reported its result              | Archive | Archive    | Not retested            | Archive           |
+| S3   | Daily run finished; a stock warning remains for future work | Keep    | Review     | Review                  | Archive           |
+| S4   | Reminder was delivered; the external case remains open      | Keep    | Keep       | Review                  | Archive           |
+| S5   | Scanner waits for the user's login handoff                  | Keep    | Keep       | Not retested            | Keep              |
+| S6   | Requested background automation is still unconfigured       | Keep    | Keep       | Not retested            | Keep              |
+| S7   | No opening or latest message was available                  | Review  | Keep       | Review by evidence gate | Review            |
+| S8   | Another task also lacked usable messages                    | Review  | Review     | Not retested            | Review            |
+| S9   | Publishing failed and the task is pinned                    | Keep    | Review     | Not retested            | Review            |
 
-For the two sampled old v1 Archive outcomes, provisional labels found **0 false Archives**. This says nothing about the other 11 old Archive outcomes or the new classifier. A v2 comparison is **pending**: no live Jev call was authorized for this review. Once authorized, run only these selected cases through v2, compare each output to the owner-reviewed label, record every disagreement and false Archive, and keep the raw evidence and IDs local. Do not infer v2 accuracy from the policy-vector tests or old cache.
+The first nine v2 calls had **0 false Archive suggestions against provisional labels** and four disagreements: S1 and S3 returned Review for provisional Archive, S4 returned Keep for provisional Archive, and S7 returned Keep for provisional Review. Three remaining authorized calls retested S1, S3, and S4 after clarifying that a delivered reminder or run result closes that request even if a separate case or warning remains. They returned Review, Review, and Review. No threshold was relaxed. S7 exposed a deterministic defect: a title without task messages was sent to Jev. The evidence gate now returns Review before any model call for that case, covered by a focused test. S8 also had no usable messages, so the same gate applies there.
+
+These 12 calls are a small diagnostic sample, not a calibrated accuracy estimate. The prompt changed between the initial and retest calls, and only three cases were retested. The remaining Review outcomes for S1, S3, and S4 are conservative disagreements against labels that Wesley has not reviewed. Do not broaden Archive behavior or relax the thresholds from this sample.
 
 ## Cache compatibility
 
