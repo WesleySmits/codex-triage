@@ -5,9 +5,10 @@ import type { AnalysisControls } from './use-analysis'
 interface Props {
   analysis: AnalysisControls
   language: Language
+  filteredTaskIds: string[]
 }
 
-export function AnalysisPanel({ analysis, language }: Props) {
+export function AnalysisPanel({ analysis, language, filteredTaskIds }: Props) {
   const t = translator(language)
   const progress = analysis.status?.progress
 
@@ -19,7 +20,11 @@ export function AnalysisPanel({ analysis, language }: Props) {
           <h2 id="analysis-title">{t('analysisTitle')}</h2>
           <p>{t('analysisPrivacy')}</p>
         </div>
-        <AnalysisButtons analysis={analysis} language={language} />
+        <AnalysisButtons
+          analysis={analysis}
+          language={language}
+          filteredTaskIds={filteredTaskIds}
+        />
       </div>
       <p className="analysis-note">{t('analysisAdvisory')}</p>
       <AnalysisNotices analysis={analysis} language={language} />
@@ -28,7 +33,10 @@ export function AnalysisPanel({ analysis, language }: Props) {
   )
 }
 
-function AnalysisNotices({ analysis, language }: Props) {
+function AnalysisNotices({
+  analysis,
+  language,
+}: Pick<Props, 'analysis' | 'language'>) {
   const t = translator(language)
   return (
     <>
@@ -44,7 +52,7 @@ function AnalysisNotices({ analysis, language }: Props) {
   )
 }
 
-function AnalysisButtons({ analysis, language }: Props) {
+function AnalysisButtons({ analysis, language, filteredTaskIds }: Props) {
   const t = translator(language)
   const running = analysis.status?.progress.status === 'running'
   const disabled = [
@@ -58,6 +66,11 @@ function AnalysisButtons({ analysis, language }: Props) {
       <span aria-live="polite">
         {t('analysisSelected', { count: analysis.selected.length })}
       </span>
+      <FilteredSelectionButtons
+        analysis={analysis}
+        language={language}
+        filteredTaskIds={filteredTaskIds}
+      />
       <button
         className="button secondary"
         type="button"
@@ -85,6 +98,44 @@ function AnalysisButtons({ analysis, language }: Props) {
         </button>
       )}
     </div>
+  )
+}
+
+function FilteredSelectionButtons({
+  analysis,
+  language,
+  filteredTaskIds,
+}: Props) {
+  const t = translator(language)
+  const filtered = new Set(filteredTaskIds)
+  const selectedFilteredCount = analysis.selected.filter((id) =>
+    filtered.has(id),
+  ).length
+  return (
+    <>
+      <button
+        className="button secondary"
+        type="button"
+        disabled={
+          filtered.size === 0 || selectedFilteredCount === filtered.size
+        }
+        onClick={() => {
+          analysis.selectFiltered(filteredTaskIds)
+        }}
+      >
+        {t('selectFiltered', { count: filtered.size })}
+      </button>
+      <button
+        className="button secondary"
+        type="button"
+        disabled={selectedFilteredCount === 0}
+        onClick={() => {
+          analysis.deselectFiltered(filteredTaskIds)
+        }}
+      >
+        {t('deselectFiltered')}
+      </button>
+    </>
   )
 }
 

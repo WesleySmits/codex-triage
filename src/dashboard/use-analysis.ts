@@ -12,6 +12,8 @@ import { type AnalysisReadout, startAnalysisPolling } from './analysis-polling'
 import {
   analysisRequestIds,
   availableSelection,
+  deselectFiltered,
+  selectFiltered,
   toggleSelection,
 } from './analysis-selection'
 
@@ -34,6 +36,8 @@ export interface AnalysisControls {
   busy: boolean
   error: string | null
   toggle: (id: string) => void
+  selectFiltered: (ids: string[]) => void
+  deselectFiltered: (ids: string[]) => void
   clear: () => void
   start: () => Promise<void>
   cancel: () => Promise<void>
@@ -67,6 +71,12 @@ export function useAnalysis(tasks: Task[]): AnalysisControls {
     error,
     toggle: (id) => {
       setSelected((current) => toggleSelection(current, id))
+    },
+    selectFiltered: (ids) => {
+      setSelected((current) => selectFiltered(current, ids))
+    },
+    deselectFiltered: (ids) => {
+      setSelected((current) => deselectFiltered(current, ids))
     },
     clear: () => {
       setSelected([])

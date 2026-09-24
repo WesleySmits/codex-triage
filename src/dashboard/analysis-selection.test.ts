@@ -5,6 +5,9 @@ import type { Task } from '../server/task-types'
 import {
   analysisRequestIds,
   availableSelection,
+  deselectFiltered,
+  filteredSelectionIds,
+  selectFiltered,
   toggleSelection,
 } from './analysis-selection'
 
@@ -81,5 +84,34 @@ describe('analysis selection', () => {
     expect(
       analysisRequestIds(['current'], [task('current')], ready, true),
     ).toEqual([])
+  })
+})
+
+describe('filtered selection', () => {
+  it('uses every task before pagination or only matching automation runs', () => {
+    const first = task('first')
+    const later = task('later')
+    const ordinary = task('ordinary')
+    const group = {
+      id: 'automation',
+      latest: later,
+      runs: [first],
+      additionalSignals: [],
+    }
+    expect(
+      filteredSelectionIds([first, later, ordinary], [group], false),
+    ).toEqual(['first', 'later', 'ordinary'])
+    expect(
+      filteredSelectionIds([first, later, ordinary], [group], true),
+    ).toEqual(['first'])
+  })
+
+  it('selects every filtered ID once while preserving selections outside the filter', () => {
+    expect(
+      selectFiltered(['outside', 'first'], ['first', 'later', 'later']),
+    ).toEqual(['outside', 'first', 'later'])
+    expect(
+      deselectFiltered(['outside', 'first', 'later'], ['first', 'later']),
+    ).toEqual(['outside'])
   })
 })
