@@ -12,6 +12,9 @@ interface Props {
   language: Language
   onView: (view: View) => void
   onProject: (project: ProjectFilter) => void
+  screen: 'tasks' | 'automations'
+  onScreen: (screen: 'tasks' | 'automations') => void
+  automationCount: number
 }
 
 interface FilterButtonProps {
@@ -46,10 +49,19 @@ export function TaskSidebar({
   language,
   onView,
   onProject,
+  screen,
+  onScreen,
+  automationCount,
 }: Props) {
   const t = translator(language)
   return (
     <nav className="sidebar" aria-label={t('filters')}>
+      <ScreenFilters
+        screen={screen}
+        onScreen={onScreen}
+        automationCount={automationCount}
+        language={language}
+      />
       <div className="nav-label">{t('view')}</div>
       <FilterButton
         active={view === 'all'}
@@ -83,6 +95,34 @@ export function TaskSidebar({
         onProject={onProject}
       />
     </nav>
+  )
+}
+
+function ScreenFilters({
+  screen,
+  onScreen,
+  automationCount,
+  language,
+}: Pick<Props, 'screen' | 'onScreen' | 'automationCount' | 'language'>) {
+  const t = translator(language)
+  return (
+    <>
+      <FilterButton
+        active={screen === 'tasks'}
+        label={t('tasks')}
+        onClick={() => {
+          onScreen('tasks')
+        }}
+      />
+      <FilterButton
+        active={screen === 'automations'}
+        label={t('automations')}
+        count={automationCount}
+        onClick={() => {
+          onScreen('automations')
+        }}
+      />
+    </>
   )
 }
 

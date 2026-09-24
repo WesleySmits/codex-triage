@@ -1,5 +1,6 @@
 import type { AnalysisView } from '../server/analysis-types'
 import type { Task } from '../server/task-types'
+import { AdviceValue } from './analysis-advice'
 import { type Language, translate, translator } from './i18n'
 import type { AnalysisControls } from './use-analysis'
 
@@ -114,23 +115,6 @@ function displayTitle(task: Task, language: Language): string {
 
 function taskStatus(task: Task, language: Language): string {
   return translate(language, task.pinned ? 'pinnedTask' : 'regularTask')
-}
-
-function AdviceValue({
-  view,
-  language,
-}: {
-  view: AnalysisView | undefined
-  language: Language
-}) {
-  const t = translator(language)
-  if (!view) return <span className="muted">{t('notAnalyzed')}</span>
-  return (
-    <span className={`advice advice-${view.analysis.advice}`}>
-      {t(`advice_${view.analysis.advice}`)}
-      {view.status === 'stale' && ` · ${t('staleAnalysis')}`}
-    </span>
-  )
 }
 
 function PinMark({ pinned, label }: { pinned: boolean; label: string }) {

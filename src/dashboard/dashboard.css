@@ -422,6 +422,109 @@ th:nth-child(6) {
   color: #777;
   margin: 0 0 24px;
 }
+.automation-search {
+  display: block;
+  margin: 22px 0 14px;
+}
+.automation-note {
+  color: #aaa;
+  font-size: 12px;
+  margin: 0 0 16px;
+}
+.automation-list {
+  display: grid;
+  gap: 14px;
+}
+.automation-group {
+  border: 1px solid #333;
+  background: #0d0d0d;
+}
+.automation-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+  padding: 17px 18px 12px;
+}
+.automation-card-header h2 {
+  font-size: 16px;
+  margin: 0 0 3px;
+}
+.automation-id,
+.automation-run-count,
+.field-label,
+.automation-card-summary small {
+  color: #888;
+  font-size: 11px;
+}
+.automation-id {
+  overflow-wrap: anywhere;
+}
+.automation-run-count {
+  white-space: nowrap;
+}
+.automation-card-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding: 0 18px 17px;
+}
+.automation-card-summary > div {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+}
+.automation-card-summary strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.automation-runs {
+  border-top: 1px solid #333;
+}
+.automation-runs summary {
+  cursor: pointer;
+  padding: 11px 18px;
+  color: #ddd;
+}
+.automation-runs ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.automation-runs li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #222;
+  padding: 11px 18px;
+}
+.automation-run-select {
+  display: flex;
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+}
+.automation-run-select input {
+  margin-top: 3px;
+  accent-color: #eee;
+}
+.automation-run-select span,
+.automation-run-select small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.automation-run-select small,
+.automation-run-advice {
+  color: #888;
+  font-size: 11px;
+}
+.automation-run-advice {
+  display: grid;
+  text-align: right;
+  white-space: nowrap;
+}
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 170px minmax(0, 1fr);
@@ -554,6 +657,12 @@ th:nth-child(6) {
   }
   .list-footer {
     flex-wrap: wrap;
+  }
+  .automation-card-summary {
+    grid-template-columns: 1fr;
+  }
+  .automation-runs li {
+    align-items: start;
   }
   .pagination {
     gap: 8px;

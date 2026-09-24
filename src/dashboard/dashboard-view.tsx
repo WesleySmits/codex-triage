@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import type { Snapshot } from '../server/task-types'
+import { automationGroups } from './automation-groups'
 import { DashboardHeader } from './dashboard-header'
 import { DashboardMain } from './dashboard-main'
 import type { Language } from './i18n'
@@ -34,9 +35,11 @@ export function DashboardView({
   refreshFailed,
   analysis,
 }: Props) {
+  const [screen, setScreen] = useState<'tasks' | 'automations'>('tasks')
+  const { tasks } = snapshot
   const filters = useDashboardFilters(snapshot, language)
-  const pinnedCount = snapshot.tasks.filter((task) => task.pinned).length
-
+  const pinnedCount = tasks.filter((task) => task.pinned).length
+  const groups = automationGroups(tasks, filters.filtered, analysis.views)
   return (
     <>
       <DashboardHeader
@@ -48,7 +51,7 @@ export function DashboardView({
       />
       <div className="layout">
         <TaskSidebar
-          tasks={snapshot.tasks}
+          tasks={tasks}
           projects={activeProjects(snapshot)}
           view={filters.view}
           project={filters.project}
@@ -57,6 +60,9 @@ export function DashboardView({
           language={language}
           onView={filters.chooseView}
           onProject={filters.chooseProject}
+          screen={screen}
+          onScreen={setScreen}
+          automationCount={groups.length}
         />
         <DashboardMain
           snapshot={snapshot}
@@ -71,6 +77,8 @@ export function DashboardView({
           pageCount={filters.pageCount}
           onPage={filters.setPage}
           analysis={analysis}
+          screen={screen}
+          groups={groups}
         />
       </div>
     </>
