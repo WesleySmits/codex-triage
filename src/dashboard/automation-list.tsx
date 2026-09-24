@@ -122,7 +122,7 @@ function GroupArchiveButton({
     <button
       className="button secondary"
       type="button"
-      disabled={archive.busy}
+      disabled={archive.busy || archive.reconciliation.required}
       onClick={() => {
         archive.request({ kind: 'group', automationId: group.id, tasks })
       }}
@@ -206,18 +206,32 @@ function AutomationRun({
       <div className="automation-run-advice">
         {run.id === group.latest.id && <span>{t('newestRun')}</span>}
         <AdviceValue view={view} language={language} />
-        <button
-          className="button secondary"
-          type="button"
-          disabled={archive.busy}
-          onClick={() => {
-            archive.request({ kind: 'task', task: run })
-          }}
-        >
-          {t('archiveAction')}
-        </button>
+        <RunArchiveButton run={run} archive={archive} language={language} />
       </div>
     </li>
+  )
+}
+
+function RunArchiveButton({
+  run,
+  archive,
+  language,
+}: {
+  run: Task
+  archive: ArchiveControls
+  language: Language
+}) {
+  return (
+    <button
+      className="button secondary"
+      type="button"
+      disabled={archive.busy || archive.reconciliation.required}
+      onClick={() => {
+        archive.request({ kind: 'task', task: run })
+      }}
+    >
+      {translator(language)('archiveAction')}
+    </button>
   )
 }
 

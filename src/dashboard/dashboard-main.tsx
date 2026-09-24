@@ -1,6 +1,7 @@
 import type { Snapshot, Task } from '../server/task-types'
 import { AnalysisPanel } from './analysis-panel'
-import { ArchivedList, ArchivePanel } from './archive-panel'
+import { ArchivePanel } from './archive-panel'
+import { ArchivedList } from './archived-list'
 import type { AutomationGroup } from './automation-groups'
 import { AutomationList } from './automation-list'
 import { type Language, translator } from './i18n'

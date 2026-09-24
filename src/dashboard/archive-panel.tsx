@@ -1,4 +1,4 @@
-import type { ExpectedTask } from '../server/task-types'
+import { needsReconciliation } from './archive-reconciliation'
 import { groupCounts, remainingGroup } from './archive-review'
 import { type Language, translator } from './i18n'
 import type { ArchiveControls } from './use-archive-actions'
@@ -16,6 +16,7 @@ export function ArchivePanel({ archive, language }: Props) {
       {archive.busy && <p role="status">{t('archiveWorking')}</p>}
       <ArchiveError archive={archive} language={language} />
       <ArchiveReceiptView archive={archive} language={language} />
+      <ReconciliationReview archive={archive} language={language} />
     </section>
   )
 }
@@ -71,9 +72,7 @@ function ArchiveReceiptView({ archive, language }: Props) {
   const receipt = archive.receipt
   if (!receipt) return null
   const { result } = receipt
-  const blocked = ['partial', 'uncertain', 'stale', 'busy'].includes(
-    result.status,
-  )
+  const blocked = needsReconciliation(result.status)
   const next = remainingGroup(receipt)
   return (
     <div
@@ -126,6 +125,42 @@ function ReceiptReconciliation({
   return blocked ? <p>{translator(language)('archiveReconcile')}</p> : null
 }
 
+function ReconciliationReview({ archive, language }: Props) {
+  if (!archive.reconciliation.required) return null
+  const t = translator(language)
+  return (
+    <div
+      className="notice error"
+      role="group"
+      aria-label={t('archiveReviewTitle')}
+    >
+      <p>{t('archiveReconcile')}</p>
+      <p>
+        {t('archiveReconcileActive', {
+          done: reviewMarker(archive.reconciliation.activeReviewed),
+        })}
+      </p>
+      <p>
+        {t('archiveReconcileArchived', {
+          done: reviewMarker(archive.reconciliation.archivedReviewed),
+        })}
+      </p>
+      <button
+        className="button secondary"
+        type="button"
+        disabled={!archive.canAcknowledge || archive.busy}
+        onClick={archive.acknowledgeReconciliation}
+      >
+        {t('archiveAcknowledge')}
+      </button>
+    </div>
+  )
+}
+
+function reviewMarker(reviewed: boolean): string {
+  return reviewed ? '✓' : '—'
+}
+
 function targetDescription(
   target: NonNullable<ArchiveControls['pending']>,
   language: Language,
@@ -157,69 +192,4 @@ function taskArchiveDescription(
     id: task.id,
     pinned: t(task.pinned ? 'pinnedTask' : 'regularTask'),
   })
-}
-
-export function ArchivedList({ archive, language }: Props) {
-  const t = translator(language)
-  return (
-    <section className="archived-list" aria-label={t('archivedTasks')}>
-      <div className="archived-heading">
-        <h2>{t('archivedTasks')}</h2>
-        <button
-          className="button secondary"
-          type="button"
-          disabled={archive.busy}
-          onClick={() => void archive.loadArchived()}
-        >
-          {t('refreshArchived')}
-        </button>
-      </div>
-      <p className="muted">{t('archivedListNote')}</p>
-      <ArchivedListBody archive={archive} language={language} />
-    </section>
-  )
-}
-
-function ArchivedListBody({ archive, language }: Props) {
-  const t = translator(language)
-  if (!archive.archivedLoaded) return <p>{t('archivedNotLoaded')}</p>
-  if (archive.archived.length === 0) return <p>{t('noArchivedTasks')}</p>
-  return (
-    <ul>
-      {archive.archived.map((task) => (
-        <ArchivedRow
-          key={task.id}
-          task={task}
-          archive={archive}
-          language={language}
-        />
-      ))}
-    </ul>
-  )
-}
-
-function ArchivedRow({
-  task,
-  archive,
-  language,
-}: Props & { task: ExpectedTask }) {
-  const t = translator(language)
-  return (
-    <li>
-      <span>
-        <strong>{task.id}</strong>
-        {task.pinned && <small>{t('pinnedTask')}</small>}
-      </span>
-      <button
-        className="button secondary"
-        type="button"
-        disabled={archive.busy}
-        onClick={() => {
-          archive.request({ kind: 'restore', task })
-        }}
-      >
-        {t('restoreTask')}
-      </button>
-    </li>
-  )
 }

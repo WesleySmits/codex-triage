@@ -43,10 +43,13 @@ function Dashboard() {
   }
 
   async function refresh() {
+    const startedForReview = archive.reconciliation.required
     setRefreshing(true)
     setRefreshFailed(false)
     try {
-      setSnapshot(await refreshTaskSnapshot())
+      const fresh = await refreshTaskSnapshot()
+      setSnapshot(fresh)
+      if (startedForReview) archive.reviewedActiveSnapshot(fresh)
       await analysis.reload()
     } catch {
       setRefreshFailed(true)

@@ -58,7 +58,7 @@ export function DashboardView({
           view={filters.view}
           project={filters.project}
           counts={projectCounts(filters.viewed)}
-          pinnedCount={tasks.filter((task) => task.pinned).length}
+          pinnedCount={filters.pinnedCount}
           language={language}
           onView={filters.chooseView}
           onProject={filters.chooseProject}
@@ -70,7 +70,7 @@ export function DashboardView({
           snapshot={snapshot}
           language={language}
           view={filters.view}
-          pinnedCount={tasks.filter((task) => task.pinned).length}
+          pinnedCount={filters.pinnedCount}
           refreshFailed={refreshFailed}
           tasks={filters.filtered}
           search={filters.search}
@@ -102,6 +102,7 @@ function useDashboardScreen(archive: ArchiveControls) {
 }
 
 function useDashboardFilters(snapshot: Snapshot, language: Language) {
+  const pinnedCount = snapshot.tasks.filter((task) => task.pinned).length
   const [view, setView] = useState<View>('all')
   const [project, setProject] = useState<ProjectFilter>({ kind: 'all' })
   const [search, setSearch] = useState('')
@@ -127,6 +128,7 @@ function useDashboardFilters(snapshot: Snapshot, language: Language) {
     setPage(1)
   }
   return {
+    pinnedCount,
     view,
     project,
     search,

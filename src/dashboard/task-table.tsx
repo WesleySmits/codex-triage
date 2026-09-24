@@ -132,7 +132,7 @@ function TaskArchiveButton({
     <button
       className="button secondary"
       type="button"
-      disabled={archive.busy}
+      disabled={archive.busy || archive.reconciliation.required}
       onClick={() => {
         archive.request({ kind: 'task', task })
       }}

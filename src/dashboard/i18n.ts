@@ -105,6 +105,9 @@ const messages = {
     archiveUnknownError: 'The request did not return a confirmed result.',
     archiveReconcile:
       'Stop here. Refresh the active and archived lists, check the confirmed IDs, and reconcile before another action. Do not retry this request blindly.',
+    archiveReconcileActive: '{done} Active list refreshed',
+    archiveReconcileArchived: '{done} Archived list refreshed',
+    archiveAcknowledge: 'I reviewed both lists; allow another action',
     archiveConfirmed: '{count} confirmed by readback.',
     archiveRemaining: '{count} runs remain in the fresh snapshot.',
     reviewNextBatch: 'Review remaining runs',
@@ -230,6 +233,10 @@ const messages = {
     archiveUnknownError: 'Het verzoek leverde geen bevestigd resultaat op.',
     archiveReconcile:
       'Stop hier. Ververs de actieve en gearchiveerde lijsten, controleer de bevestigde IDs en stem de status af vóór een volgende actie. Herhaal dit verzoek niet blind.',
+    archiveReconcileActive: '{done} Actieve lijst ververst',
+    archiveReconcileArchived: '{done} Gearchiveerde lijst ververst',
+    archiveAcknowledge:
+      'Ik heb beide lijsten beoordeeld; sta een nieuwe actie toe',
     archiveConfirmed: '{count} bevestigd via teruglezing.',
     archiveRemaining: '{count} runs staan nog in de nieuwe momentopname.',
     reviewNextBatch: 'Beoordeel resterende runs',
