@@ -59,6 +59,17 @@ The first nine v2 calls had **0 false Archive suggestions against provisional la
 
 These 12 calls are a small diagnostic sample, not a calibrated accuracy estimate. The prompt changed between the initial and retest calls, and only three cases were retested. The remaining Review outcomes for S1, S3, and S4 are conservative disagreements against labels that Wesley has not reviewed. Do not broaden Archive behavior or relax the thresholds from this sample.
 
+## Owner-reviewed completed tasks
+
+Wesley reviewed two additional completed task examples and confirmed that both should be labeled **Archive** because the requested review work had been delivered. Their current Jev outcomes remain **Review**. Jev was not called again for either task, so these labels record owner judgment and do not establish that the model or current prompt recognizes them. No task IDs, excerpts, or cache data are included here.
+
+| Case | Abstracted evidence                            | Owner label | Current Jev outcome |
+| ---- | ---------------------------------------------- | ----------- | ------------------- |
+| O1   | Requested negative-case review was delivered   | Archive     | Review              |
+| O2   | Generated route-tree hook review was completed | Archive     | Review              |
+
+These two labels do not justify changing the thresholds or prompt, and they are not a model retest or an accuracy claim. Any later prompt or policy change needs a separately authorized evaluation.
+
 ## Cache compatibility
 
 Version `codex-triage-v2` invalidates v1 judgments. The existing ignored `analysis-v1.json` file remains readable: v1 signals use `stillRelevant` and `outdated`, while v2 uses `obsolete`. Old entries appear as stale and are not cache hits. A new explicit analysis replaces an entry for the same task without migrating or discarding other entries.
