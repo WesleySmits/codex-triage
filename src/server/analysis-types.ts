@@ -10,6 +10,12 @@ export type Reason =
 export interface Signals {
   completed: number
   openAction: number
+  obsolete: number
+}
+
+export interface LegacySignals {
+  completed: number
+  openAction: number
   stillRelevant: number
   outdated: number
 }
@@ -23,7 +29,7 @@ export interface Analysis {
   rubricVersion: string
   advice: Advice
   reason: Reason
-  signals: Signals | null
+  signals: LegacySignals | Signals | null
   inputTokens: number
   outputTokens: number
   elapsedMs: number
