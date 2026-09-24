@@ -1,11 +1,14 @@
 import type { Snapshot, Task } from '../server/task-types'
 import { AnalysisPanel } from './analysis-panel'
+import { ArchivePanel } from './archive-panel'
+import { ArchivedList } from './archived-list'
 import type { AutomationGroup } from './automation-groups'
 import { AutomationList } from './automation-list'
 import { type Language, translator } from './i18n'
 import type { View } from './task-filter'
 import { TaskList } from './task-list'
 import type { AnalysisControls } from './use-analysis'
+import type { ArchiveControls } from './use-archive-actions'
 
 interface Props {
   snapshot: Snapshot
@@ -20,8 +23,10 @@ interface Props {
   pageCount: number
   onPage: (page: number) => void
   analysis: AnalysisControls
-  screen: 'tasks' | 'automations'
+  screen: 'tasks' | 'automations' | 'archived'
   groups: AutomationGroup[]
+  archive: ArchiveControls
+  allTasks: Task[]
 }
 
 export function DashboardMain({
@@ -39,8 +44,9 @@ export function DashboardMain({
   analysis,
   screen,
   groups,
+  archive,
+  allTasks,
 }: Props) {
-  const t = translator(language)
   return (
     <main id="task-list" className="main-content" tabIndex={-1}>
       <MainHeading
@@ -50,18 +56,13 @@ export function DashboardMain({
         taskCount={snapshot.tasks.length}
         pinnedCount={pinnedCount}
       />
-      {snapshot.error && (
-        <div className="notice error" role="alert">
-          <strong>{t('syncFailed')}</strong> {t('syncRetry')}
-        </div>
-      )}
-      {refreshFailed && (
-        <div className="notice error" role="alert">
-          {t('refreshFailed')}
-        </div>
-      )}
-      <AnalysisPanel analysis={analysis} language={language} />
-      <MainList
+      <MainNotices
+        snapshot={snapshot}
+        refreshFailed={refreshFailed}
+        language={language}
+      />
+      <ArchivePanel archive={archive} language={language} />
+      <MainBody
         {...{
           screen,
           search,
@@ -73,9 +74,44 @@ export function DashboardMain({
           currentPage,
           pageCount,
           onPage,
+          archive,
+          allTasks,
         }}
       />
     </main>
+  )
+}
+
+function MainBody(props: MainListProps) {
+  if (props.screen === 'archived')
+    return <ArchivedList archive={props.archive} language={props.language} />
+  return (
+    <>
+      <AnalysisPanel analysis={props.analysis} language={props.language} />
+      <MainList {...props} />
+    </>
+  )
+}
+
+function MainNotices({
+  snapshot,
+  refreshFailed,
+  language,
+}: Pick<Props, 'snapshot' | 'refreshFailed' | 'language'>) {
+  const t = translator(language)
+  return (
+    <>
+      {snapshot.error && (
+        <div className="notice error" role="alert">
+          <strong>{t('syncFailed')}</strong> {t('syncRetry')}
+        </div>
+      )}
+      {refreshFailed && (
+        <div className="notice error" role="alert">
+          {t('refreshFailed')}
+        </div>
+      )}
+    </>
   )
 }
 
@@ -93,10 +129,8 @@ function MainHeading({
     <div className="page-heading">
       <div>
         <p className="eyebrow">{t('localTasks')}</p>
-        <h1>
-          {t(screen === 'automations' ? 'automations' : headingKey(view))}
-        </h1>
-        <p>{t(screen === 'automations' ? 'automationIntro' : 'intro')}</p>
+        <h1>{t(screenHeading(screen, view))}</h1>
+        <p>{t(screenIntro(screen))}</p>
       </div>
       <div className="summary">
         <strong>{taskCount}</strong>
@@ -107,6 +141,34 @@ function MainHeading({
     </div>
   )
 }
+
+function screenHeading(screen: Props['screen'], view: View) {
+  if (screen === 'archived') return 'archivedTasks'
+  if (screen === 'automations') return 'automations'
+  return headingKey(view)
+}
+
+function screenIntro(screen: Props['screen']) {
+  if (screen === 'archived') return 'archivedListNote'
+  if (screen === 'automations') return 'automationIntro'
+  return 'intro'
+}
+
+type MainListProps = Pick<
+  Props,
+  | 'screen'
+  | 'search'
+  | 'onSearch'
+  | 'groups'
+  | 'language'
+  | 'analysis'
+  | 'tasks'
+  | 'currentPage'
+  | 'pageCount'
+  | 'onPage'
+  | 'archive'
+  | 'allTasks'
+>
 
 function MainList({
   screen,
@@ -119,19 +181,9 @@ function MainList({
   currentPage,
   pageCount,
   onPage,
-}: Pick<
-  Props,
-  | 'screen'
-  | 'search'
-  | 'onSearch'
-  | 'groups'
-  | 'language'
-  | 'analysis'
-  | 'tasks'
-  | 'currentPage'
-  | 'pageCount'
-  | 'onPage'
->) {
+  archive,
+  allTasks,
+}: MainListProps) {
   const t = translator(language)
   return screen === 'automations' ? (
     <>
@@ -146,7 +198,13 @@ function MainList({
           }}
         />
       </label>
-      <AutomationList groups={groups} language={language} analysis={analysis} />
+      <AutomationList
+        groups={groups}
+        language={language}
+        analysis={analysis}
+        archive={archive}
+        allTasks={allTasks}
+      />
     </>
   ) : (
     <TaskList
@@ -158,6 +216,7 @@ function MainList({
       pageCount={pageCount}
       onPage={onPage}
       analysis={analysis}
+      archive={archive}
     />
   )
 }

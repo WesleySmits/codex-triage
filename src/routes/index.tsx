@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { DashboardView } from '../dashboard/dashboard-view'
 import type { Language } from '../dashboard/i18n'
 import { useAnalysis } from '../dashboard/use-analysis'
+import { useArchiveActions } from '../dashboard/use-archive-actions'
 import { getTaskSnapshot, refreshTaskSnapshot } from '../server/functions'
 import type { Snapshot } from '../server/task-types'
 
@@ -18,6 +19,7 @@ function Dashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const [refreshFailed, setRefreshFailed] = useState(false)
   const analysis = useAnalysis(snapshot.tasks)
+  const archive = useArchiveActions(setSnapshot)
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -41,10 +43,13 @@ function Dashboard() {
   }
 
   async function refresh() {
+    const startedForReview = archive.reconciliation.required
     setRefreshing(true)
     setRefreshFailed(false)
     try {
-      setSnapshot(await refreshTaskSnapshot())
+      const fresh = await refreshTaskSnapshot()
+      setSnapshot(fresh)
+      if (startedForReview) archive.reviewedActiveSnapshot(fresh)
       await analysis.reload()
     } catch {
       setRefreshFailed(true)
@@ -64,6 +69,7 @@ function Dashboard() {
       refreshing={refreshing}
       refreshFailed={refreshFailed}
       analysis={analysis}
+      archive={archive}
     />
   )
 }

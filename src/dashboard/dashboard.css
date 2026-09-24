@@ -317,19 +317,22 @@ td:first-child {
   padding-left: 14px;
 }
 th:nth-child(2) {
-  width: 38%;
+  width: 32%;
 }
 th:nth-child(3) {
-  width: 19%;
+  width: 16%;
 }
 th:nth-child(4) {
-  width: 15%;
+  width: 13%;
 }
 th:nth-child(5) {
-  width: 11%;
+  width: 10%;
 }
 th:nth-child(6) {
-  width: 17%;
+  width: 11%;
+}
+th:nth-child(7) {
+  width: 13%;
 }
 .selection-column input {
   width: 16px;
@@ -525,6 +528,69 @@ th:nth-child(6) {
   text-align: right;
   white-space: nowrap;
 }
+.archive-panel:empty {
+  display: none;
+}
+.archive-confirm,
+.archive-receipt,
+.archived-list {
+  border: 1px solid #444;
+  background: #111;
+  padding: 16px 18px;
+  margin: 0 0 16px;
+}
+.archive-confirm h2,
+.archived-list h2 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+.archive-confirm p,
+.archive-receipt p {
+  margin: 6px 0;
+}
+.archive-warning {
+  color: #e4c38a;
+}
+.archive-buttons,
+.archived-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.archive-buttons {
+  justify-content: flex-start;
+  margin-top: 14px;
+}
+.archive-receipt small {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #aaa;
+}
+.archived-list ul {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.archived-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid #333;
+}
+.archived-list li strong {
+  overflow-wrap: anywhere;
+}
+.archived-list li small {
+  display: block;
+  color: #e4c38a;
+}
+.archive-cell .button,
+.automation-run-advice .button {
+  white-space: nowrap;
+}
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 170px minmax(0, 1fr);
@@ -611,7 +677,7 @@ th:nth-child(6) {
   tbody tr {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: 'select task' 'project project' 'updated status' 'advice advice';
+    grid-template-areas: 'select task' 'project project' 'updated status' 'advice archive';
     gap: 3px 10px;
     padding: 9px 0 11px;
     border-bottom: 1px solid #333;
@@ -643,6 +709,10 @@ th:nth-child(6) {
   }
   tbody td:nth-child(6) {
     grid-area: advice;
+  }
+  tbody td:nth-child(7) {
+    grid-area: archive;
+    text-align: right;
   }
   .mobile-label {
     display: inline;

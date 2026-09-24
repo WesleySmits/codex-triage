@@ -5,14 +5,23 @@ import type { AutomationGroup } from './automation-groups'
 import { signalKey } from './automation-signals'
 import { type Language, translator } from './i18n'
 import type { AnalysisControls } from './use-analysis'
+import type { ArchiveControls } from './use-archive-actions'
 
 interface Props {
   groups: AutomationGroup[]
   language: Language
   analysis: AnalysisControls
+  archive: ArchiveControls
+  allTasks: Task[]
 }
 
-export function AutomationList({ groups, language, analysis }: Props) {
+export function AutomationList({
+  groups,
+  language,
+  analysis,
+  archive,
+  allTasks,
+}: Props) {
   const t = translator(language)
   const views = new Map(analysis.views.map((view) => [view.taskId, view]))
   return (
@@ -32,6 +41,8 @@ export function AutomationList({ groups, language, analysis }: Props) {
               language={language}
               views={views}
               analysis={analysis}
+              archive={archive}
+              allTasks={allTasks}
             />
           ))}
         </div>
@@ -45,13 +56,16 @@ function AutomationCard({
   language,
   views,
   analysis,
-}: {
+  archive,
+  allTasks,
+}: Pick<Props, 'language' | 'analysis' | 'archive' | 'allTasks'> & {
   group: AutomationGroup
-  language: Language
   views: Map<string, AnalysisView>
-  analysis: AnalysisControls
 }) {
   const t = translator(language)
+  const completeGroup = allTasks.filter(
+    (task) => task.automationId === group.id,
+  )
   return (
     <article className="automation-group">
       <div className="automation-card-header">
@@ -64,6 +78,12 @@ function AutomationCard({
         <span className="automation-run-count">
           {t('runCount', { count: group.runs.length })}
         </span>
+        <GroupArchiveButton
+          group={group}
+          tasks={completeGroup}
+          archive={archive}
+          language={language}
+        />
       </div>
       <AutomationSummary group={group} views={views} language={language} />
       <details className="automation-runs">
@@ -77,11 +97,38 @@ function AutomationCard({
               language={language}
               view={views.get(run.id)}
               analysis={analysis}
+              archive={archive}
             />
           ))}
         </ol>
       </details>
     </article>
+  )
+}
+
+function GroupArchiveButton({
+  group,
+  tasks,
+  archive,
+  language,
+}: {
+  group: AutomationGroup
+  tasks: Task[]
+  archive: ArchiveControls
+  language: Language
+}) {
+  const t = translator(language)
+  return (
+    <button
+      className="button secondary"
+      type="button"
+      disabled={archive.busy || archive.reconciliation.required}
+      onClick={() => {
+        archive.request({ kind: 'group', automationId: group.id, tasks })
+      }}
+    >
+      {t('archiveAllRuns')}
+    </button>
   )
 }
 
@@ -128,12 +175,14 @@ function AutomationRun({
   language,
   view,
   analysis,
+  archive,
 }: {
   run: Task
   group: AutomationGroup
   language: Language
   view: AnalysisView | undefined
   analysis: AnalysisControls
+  archive: ArchiveControls
 }) {
   const t = translator(language)
   return (
@@ -157,8 +206,32 @@ function AutomationRun({
       <div className="automation-run-advice">
         {run.id === group.latest.id && <span>{t('newestRun')}</span>}
         <AdviceValue view={view} language={language} />
+        <RunArchiveButton run={run} archive={archive} language={language} />
       </div>
     </li>
+  )
+}
+
+function RunArchiveButton({
+  run,
+  archive,
+  language,
+}: {
+  run: Task
+  archive: ArchiveControls
+  language: Language
+}) {
+  return (
+    <button
+      className="button secondary"
+      type="button"
+      disabled={archive.busy || archive.reconciliation.required}
+      onClick={() => {
+        archive.request({ kind: 'task', task: run })
+      }}
+    >
+      {translator(language)('archiveAction')}
+    </button>
   )
 }
 

@@ -125,7 +125,7 @@ export class TaskStore {
         return { status: 'stale', confirmedIds: [], snapshot: fresh }
       }
       const outcome = await this.runWrite((client) =>
-        writeSingle(client, expected, archived),
+        writeSingle(client, expected, archived, this.loadState),
       )
       return {
         ...outcome,

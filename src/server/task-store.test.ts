@@ -165,6 +165,36 @@ describe('archive policy', () => {
   })
 })
 
+describe('restore pin state', () => {
+  it('rejects restore when archived pin state changed before the write', async () => {
+    const client = new FakeClient()
+    const task = thread(0)
+    client.archived = [task]
+    const result = await store(client, [task.id]).setArchived(
+      expected(task, false),
+      false,
+    )
+    expect(result.status).toBe('stale')
+    expect(client.writes).toEqual([])
+  })
+
+  it('reports uncertain restore when pin state changes before readback', async () => {
+    const client = new FakeClient()
+    const task = thread(0)
+    client.archived = [task]
+    const pins: string[] = []
+    const restore = client.unarchiveThread.bind(client)
+    client.unarchiveThread = async (id) => {
+      await restore(id)
+      pins.push(id)
+    }
+    const result = await store(client, pins).setArchived(expected(task), false)
+    expect(result.status).toBe('uncertain')
+    expect(result.confirmedIds).toEqual([])
+    expect(client.writes).toEqual([task.id])
+  })
+})
+
 describe('automation group archive policy', () => {
   it('archives at most ten runs and requires a fresh remaining-group decision', async () => {
     const client = new FakeClient()

@@ -15,6 +15,7 @@ import {
 } from './task-filter'
 import { TaskSidebar } from './task-sidebar'
 import type { AnalysisControls } from './use-analysis'
+import type { ArchiveControls } from './use-archive-actions'
 
 interface Props {
   snapshot: Snapshot
@@ -24,6 +25,7 @@ interface Props {
   refreshing: boolean
   refreshFailed: boolean
   analysis: AnalysisControls
+  archive: ArchiveControls
 }
 
 export function DashboardView({
@@ -34,11 +36,11 @@ export function DashboardView({
   refreshing,
   refreshFailed,
   analysis,
+  archive,
 }: Props) {
-  const [screen, setScreen] = useState<'tasks' | 'automations'>('tasks')
+  const [screen, chooseScreen] = useDashboardScreen(archive)
   const { tasks } = snapshot
   const filters = useDashboardFilters(snapshot, language)
-  const pinnedCount = tasks.filter((task) => task.pinned).length
   const groups = automationGroups(tasks, filters.filtered, analysis.views)
   return (
     <>
@@ -56,19 +58,19 @@ export function DashboardView({
           view={filters.view}
           project={filters.project}
           counts={projectCounts(filters.viewed)}
-          pinnedCount={pinnedCount}
+          pinnedCount={filters.pinnedCount}
           language={language}
           onView={filters.chooseView}
           onProject={filters.chooseProject}
           screen={screen}
-          onScreen={setScreen}
+          onScreen={chooseScreen}
           automationCount={groups.length}
         />
         <DashboardMain
           snapshot={snapshot}
           language={language}
           view={filters.view}
-          pinnedCount={pinnedCount}
+          pinnedCount={filters.pinnedCount}
           refreshFailed={refreshFailed}
           tasks={filters.filtered}
           search={filters.search}
@@ -79,13 +81,28 @@ export function DashboardView({
           analysis={analysis}
           screen={screen}
           groups={groups}
+          archive={archive}
+          allTasks={tasks}
         />
       </div>
     </>
   )
 }
 
+function useDashboardScreen(archive: ArchiveControls) {
+  const [screen, setScreen] = useState<'tasks' | 'automations' | 'archived'>(
+    'tasks',
+  )
+  function chooseScreen(next: typeof screen) {
+    setScreen(next)
+    if (next === 'archived' && !archive.archivedLoaded)
+      void archive.loadArchived()
+  }
+  return [screen, chooseScreen] as const
+}
+
 function useDashboardFilters(snapshot: Snapshot, language: Language) {
+  const pinnedCount = snapshot.tasks.filter((task) => task.pinned).length
   const [view, setView] = useState<View>('all')
   const [project, setProject] = useState<ProjectFilter>({ kind: 'all' })
   const [search, setSearch] = useState('')
@@ -111,6 +128,7 @@ function useDashboardFilters(snapshot: Snapshot, language: Language) {
     setPage(1)
   }
   return {
+    pinnedCount,
     view,
     project,
     search,
