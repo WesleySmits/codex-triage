@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-import { type ArchiveTarget, groupCounts } from './archive-review'
+import { type ArchiveTarget, groupCounts, reviewTasks } from './archive-review'
 import { type Language, translator } from './i18n'
 import type { ArchiveControls } from './use-archive-actions'
 
@@ -39,7 +39,14 @@ export function PendingReview({ archive, language }: Props) {
       }}
       onClose={() => {
         if (!archive.busy) archive.cancel()
-        triggerRef.current?.focus()
+        const trigger = triggerRef.current
+        if (
+          !archive.busy &&
+          trigger?.isConnected &&
+          !trigger.hasAttribute('disabled')
+        )
+          trigger.focus()
+        else document.getElementById('archive-feedback')?.focus()
       }}
     >
       {pending && (
@@ -68,12 +75,8 @@ function DialogContent({
 }) {
   const t = translator(language)
   const restoring = pending.kind === 'restore'
-  const tasks =
-    pending.kind === 'group' || pending.kind === 'selection'
-      ? pending.tasks
-      : pending.kind === 'task'
-        ? [pending.task]
-        : []
+  const tasks = reviewTasks(pending)
+  const pinnedInBatch = tasks.slice(0, 10).filter((task) => task.pinned).length
   return (
     <>
       <p className="archive-dialog-eyebrow">{t('archiveReviewTitle')}</p>
@@ -87,6 +90,11 @@ function DialogContent({
       <p id="archive-dialog-warning" className="archive-warning">
         {t('archiveConfirmWarning')}
       </p>
+      {pinnedInBatch > 0 && (
+        <p id="archive-dialog-pinned-warning" className="archive-warning">
+          {t('archivePinnedWarning', { count: pinnedInBatch })}
+        </p>
+      )}
       <div className="archive-buttons">
         <button
           ref={cancelRef}
@@ -122,6 +130,7 @@ function DialogTaskSummary({
   if (tasks.length === 0) return null
   const t = translator(language)
   const counts = groupCounts(tasks)
+  const pinnedInBatch = tasks.slice(0, 10).filter((task) => task.pinned).length
   return (
     <>
       <div className="archive-dialog-counts">
@@ -130,8 +139,8 @@ function DialogTaskSummary({
           {t('archiveSelectedCount')}
         </span>
         <span>
-          <strong>{counts.pinned}</strong>
-          {t('pinned')}
+          <strong>{pinnedInBatch}</strong>
+          {t('archivePinnedInBatch')}
         </span>
         <span>
           <strong>{Math.min(counts.total, 10)} / 10</strong>

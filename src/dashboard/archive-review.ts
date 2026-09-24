@@ -1,3 +1,4 @@
+import { compareArchiveTasks } from '../server/archive-order'
 import type { ArchiveResult, ExpectedTask, Task } from '../server/task-types'
 
 export type ArchiveTarget =
@@ -18,6 +19,15 @@ export function expectedTask(task: Task): ExpectedTask {
     updatedAt: task.updatedAt,
     pinned: task.pinned,
   }
+}
+
+/** The visible first batch must match the server's oldest-first write order. */
+export function reviewTasks(target: ArchiveTarget): Task[] {
+  if (target.kind === 'group')
+    return [...target.tasks].sort(compareArchiveTasks)
+  if (target.kind === 'selection') return target.tasks
+  if (target.kind === 'task') return [target.task]
+  return []
 }
 
 /** A continuation is a fresh review of the remaining group, never an automatic retry. */

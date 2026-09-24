@@ -196,6 +196,19 @@ describe('restore pin state', () => {
 })
 
 describe('automation group archive policy', () => {
+  it('uses ID as a stable tie-breaker for a reviewed first batch', async () => {
+    const client = new FakeClient()
+    client.active = ids
+      .map((_, index) => ({ ...thread(index), createdAt: 1 }))
+      .reverse()
+    const result = await store(client).archiveAutomationGroup(
+      'sample_job',
+      client.active.map((task) => expected(task)),
+    )
+    expect(result.status).toBe('continue')
+    expect(result.confirmedIds).toEqual(ids.slice(0, 10))
+  })
+
   it('archives at most ten runs and requires a fresh remaining-group decision', async () => {
     const client = new FakeClient()
     client.active = ids.map((_, index) => thread(index))

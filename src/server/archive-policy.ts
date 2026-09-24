@@ -1,3 +1,4 @@
+import { compareArchiveTasks } from './archive-order'
 import type { ExpectedTask, Snapshot, Task } from './task-types'
 
 function expectedMatches(task: Task, expected: ExpectedTask): boolean {
@@ -46,7 +47,7 @@ export function currentAutomationGroup(
     })
   )
     return null
-  return [...group].sort((a, b) => a.createdAt - b.createdAt)
+  return [...group].sort(compareArchiveTasks)
 }
 
 /** Every selected task must still match the state shown in the review. */

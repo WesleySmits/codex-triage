@@ -6,6 +6,7 @@ import {
   groupCounts,
   remainingGroup,
   remainingSelection,
+  reviewTasks,
 } from './archive-review'
 
 const task = (id: string, pinned = false): Task => ({
@@ -85,4 +86,22 @@ describe('archive review', () => {
     })
     expect(remainingSelection({ target, result: result('partial') })).toBeNull()
   })
+})
+
+it('shows the same first ten group runs the server archives, including timestamp ties', () => {
+  const runs = Array.from({ length: 12 }, (_, index) => ({
+    ...task(String(12 - index)),
+    createdAt: 1,
+  }))
+  const reviewed = reviewTasks({
+    kind: 'group',
+    automationId: 'daily',
+    tasks: runs,
+  })
+  expect(reviewed.slice(0, 10).map((item) => item.id)).toEqual(
+    [...runs]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .slice(0, 10)
+      .map((item) => item.id),
+  )
 })

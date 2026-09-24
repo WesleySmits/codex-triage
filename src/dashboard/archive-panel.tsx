@@ -15,7 +15,12 @@ export function ArchivePanel({ archive, language }: Props) {
   return (
     <>
       <PendingReview archive={archive} language={language} />
-      <section className="archive-panel" aria-label={t('archiveReviewTitle')}>
+      <section
+        id="archive-feedback"
+        className="archive-panel"
+        aria-label={t('archiveReviewTitle')}
+        tabIndex={-1}
+      >
         {archive.busy && <p role="status">{t('archiveWorking')}</p>}
         <ArchiveError archive={archive} language={language} />
         <ArchiveReceiptView archive={archive} language={language} />
