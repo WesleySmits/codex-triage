@@ -531,7 +531,6 @@ th:nth-child(7) {
 .archive-panel:empty {
   display: none;
 }
-.archive-confirm,
 .archive-receipt,
 .archived-list {
   border: 1px solid #444;
@@ -539,17 +538,77 @@ th:nth-child(7) {
   padding: 16px 18px;
   margin: 0 0 16px;
 }
-.archive-confirm h2,
 .archived-list h2 {
   font-size: 16px;
   margin: 0 0 8px;
 }
-.archive-confirm p,
 .archive-receipt p {
   margin: 6px 0;
 }
 .archive-warning {
   color: #e4c38a;
+}
+.archive-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(720px, calc(100dvh - 32px));
+  overflow: auto;
+  margin: auto;
+  padding: 20px 22px;
+  color: #f5f5f5;
+  background: #111;
+  border: 1px solid #777;
+  box-shadow: 0 20px 60px #000;
+}
+.archive-dialog::backdrop {
+  background: rgb(0 0 0 / 72%);
+}
+.archive-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+.archive-dialog p {
+  margin: 7px 0;
+  line-height: 1.5;
+}
+.archive-dialog-eyebrow {
+  color: #aaa;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.archive-dialog-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 14px 0;
+  padding: 10px 0;
+  border-top: 1px solid #555;
+  border-bottom: 1px solid #555;
+}
+.archive-dialog-counts span {
+  color: #bbb;
+  font-size: 11px;
+}
+.archive-dialog-counts strong {
+  display: block;
+  color: #f5f5f5;
+  font-size: 16px;
+}
+.archive-dialog-tasks {
+  margin: 10px 0;
+  padding-left: 18px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.archive-dialog-tasks li {
+  margin: 4px 0;
+}
+.archive-dialog .archive-buttons {
+  justify-content: flex-end;
+}
+.archive-dialog :focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
 }
 .archive-buttons,
 .archived-heading {

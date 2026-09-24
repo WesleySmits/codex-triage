@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseArchiveGroup, parseExpectedTask } from './archive-input'
+import {
+  parseArchiveGroup,
+  parseArchiveSelection,
+  parseExpectedTask,
+} from './archive-input'
 
 const expected = {
   id: '00000000-0000-4000-8000-000000000001',
@@ -29,5 +33,11 @@ describe('archive inputs', () => {
     expect(() =>
       parseArchiveGroup({ automationId: 'sample_job', tasks: [] }),
     ).toThrow()
+  })
+
+  it('requires unique selected task IDs', () => {
+    expect(parseArchiveSelection([expected])).toEqual([expected])
+    expect(() => parseArchiveSelection([expected, expected])).toThrow()
+    expect(() => parseArchiveSelection([])).toThrow()
   })
 })

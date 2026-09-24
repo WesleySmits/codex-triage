@@ -196,6 +196,19 @@ describe('restore pin state', () => {
 })
 
 describe('automation group archive policy', () => {
+  it('uses ID as a stable tie-breaker for a reviewed first batch', async () => {
+    const client = new FakeClient()
+    client.active = ids
+      .map((_, index) => ({ ...thread(index), createdAt: 1 }))
+      .reverse()
+    const result = await store(client).archiveAutomationGroup(
+      'sample_job',
+      client.active.map((task) => expected(task)),
+    )
+    expect(result.status).toBe('continue')
+    expect(result.confirmedIds).toEqual(ids.slice(0, 10))
+  })
+
   it('archives at most ten runs and requires a fresh remaining-group decision', async () => {
     const client = new FakeClient()
     client.active = ids.map((_, index) => thread(index))
@@ -233,6 +246,37 @@ describe('automation group archive policy', () => {
     const uncertain = await taskStore.setArchived(expected(thread(2)), true)
     expect(uncertain.status).toBe('uncertain')
     expect(client.writes.at(-1)).toBe(ids[2])
+  })
+})
+
+describe('selected task archive policy', () => {
+  it('archives ten selected tasks, then requires a new reviewed request', async () => {
+    const client = new FakeClient()
+    client.active = ids.map((_, index) => thread(index, 'Ordinary task'))
+    const taskStore = store(client)
+    const selected = client.active.map((task) => expected(task))
+    const first = await taskStore.archiveSelection(selected)
+    expect(first.status).toBe('continue')
+    expect(first.confirmedIds).toHaveLength(10)
+    expect(client.writes).toHaveLength(10)
+    expect((await taskStore.archiveSelection(selected)).status).toBe('stale')
+    const remaining = client.active.map((task) => expected(task))
+    expect((await taskStore.archiveSelection(remaining)).status).toBe(
+      'complete',
+    )
+  })
+
+  it('blocks the entire selection when one task changes before writing', async () => {
+    const client = new FakeClient()
+    client.active = [thread(0, 'Ordinary task'), thread(1, 'Ordinary task')]
+    const [first, second] = client.active
+    if (!first || !second) throw new Error('Missing synthetic task')
+    const result = await store(client).archiveSelection([
+      expected(first),
+      { ...expected(second), pinned: true },
+    ])
+    expect(result.status).toBe('stale')
+    expect(client.writes).toEqual([])
   })
 })
 

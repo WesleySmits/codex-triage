@@ -1,5 +1,9 @@
 import { writeBatch, writeSingle } from './archive-operations'
-import { canChangeArchiveState, currentAutomationGroup } from './archive-policy'
+import {
+  canChangeArchiveState,
+  currentAutomationGroup,
+  currentSelection,
+} from './archive-policy'
 import { createCodexClient } from './codex-client'
 import type { CodexClientLike } from './codex-types'
 import { type LocalState, readLocalState } from './local-codex-state'
@@ -145,6 +149,19 @@ export class TaskStore {
       if (!group) return { status: 'stale', confirmedIds: [], snapshot: fresh }
       const outcome = await this.runWrite((client) =>
         writeBatch(client, group.slice(0, 10), group.length),
+      )
+      return { ...outcome, snapshot: await this.refreshAfterWrite() }
+    })
+  }
+
+  async archiveSelection(expected: ExpectedTask[]): Promise<ArchiveResult> {
+    return this.withMutation(async () => {
+      const fresh = await this.refresh()
+      const selected = currentSelection(fresh, expected)
+      if (!selected)
+        return { status: 'stale', confirmedIds: [], snapshot: fresh }
+      const outcome = await this.runWrite((client) =>
+        writeBatch(client, selected.slice(0, 10), selected.length),
       )
       return { ...outcome, snapshot: await this.refreshAfterWrite() }
     })

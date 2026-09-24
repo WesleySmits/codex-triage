@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ArchiveResult, Task } from '../server/task-types'
-import { expectedTask, groupCounts, remainingGroup } from './archive-review'
+import {
+  expectedTask,
+  groupCounts,
+  remainingGroup,
+  remainingSelection,
+  reviewTasks,
+} from './archive-review'
 
 const task = (id: string, pinned = false): Task => ({
   id,
@@ -68,4 +74,34 @@ describe('archive review', () => {
       }),
     ).toBeNull()
   })
+
+  it('keeps unconfirmed selected tasks for an explicit next review', () => {
+    const target = {
+      kind: 'selection' as const,
+      tasks: [task('one'), task('two'), task('three', true)],
+    }
+    expect(remainingSelection({ target, result: result('continue') })).toEqual({
+      kind: 'selection',
+      tasks: [task('two'), task('three', true)],
+    })
+    expect(remainingSelection({ target, result: result('partial') })).toBeNull()
+  })
+})
+
+it('shows the same first ten group runs the server archives, including timestamp ties', () => {
+  const runs = Array.from({ length: 12 }, (_, index) => ({
+    ...task(String(12 - index)),
+    createdAt: 1,
+  }))
+  const reviewed = reviewTasks({
+    kind: 'group',
+    automationId: 'daily',
+    tasks: runs,
+  })
+  expect(reviewed.slice(0, 10).map((item) => item.id)).toEqual(
+    [...runs]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .slice(0, 10)
+      .map((item) => item.id),
+  )
 })

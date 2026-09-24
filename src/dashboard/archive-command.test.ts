@@ -30,6 +30,7 @@ function commands(): ArchiveCommands {
     archiveTask: vi.fn(() => Promise.resolve(result)),
     restoreTask: vi.fn(() => Promise.resolve(result)),
     archiveGroup: vi.fn(() => Promise.resolve(result)),
+    archiveSelection: vi.fn(() => Promise.resolve(result)),
   }
 }
 
@@ -53,6 +54,13 @@ describe('reviewed archive command', () => {
       expected,
     ])
     expect(calls.restoreTask).toHaveBeenCalledExactlyOnceWith(expected)
+    expect(calls.archiveTask).not.toHaveBeenCalled()
+  })
+
+  it('sends one selected-batch call with expected state', async () => {
+    const calls = commands()
+    await executeArchive({ kind: 'selection', tasks: [task] }, calls)
+    expect(calls.archiveSelection).toHaveBeenCalledExactlyOnceWith([expected])
     expect(calls.archiveTask).not.toHaveBeenCalled()
   })
 })

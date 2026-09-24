@@ -58,3 +58,12 @@ export function parseArchiveGroup(value: unknown): {
     tasks: groupTasks(input.tasks),
   }
 }
+
+export function parseArchiveSelection(value: unknown): ExpectedTask[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 20_000)
+    throw new Error('Invalid selection size')
+  const tasks = value.map(parseExpectedTask)
+  if (new Set(tasks.map((task) => task.id)).size !== tasks.length)
+    throw new Error('Duplicate task ID')
+  return tasks
+}

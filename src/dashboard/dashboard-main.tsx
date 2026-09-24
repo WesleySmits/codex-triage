@@ -91,6 +91,8 @@ function MainBody(props: MainListProps) {
       <AnalysisPanel
         analysis={props.analysis}
         language={props.language}
+        tasks={props.allTasks}
+        archive={props.archive}
         filteredTaskIds={filteredSelectionIds(
           props.tasks,
           props.groups,
