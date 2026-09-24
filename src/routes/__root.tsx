@@ -5,6 +5,8 @@ import {
   Scripts,
 } from '@tanstack/react-router'
 
+import '../dashboard/dashboard.css'
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [

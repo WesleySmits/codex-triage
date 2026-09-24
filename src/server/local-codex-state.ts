@@ -4,6 +4,8 @@ import { join } from 'node:path'
 
 import type { CodexProject } from './codex-types'
 
+const MAX_LOCAL_STATE_BYTES = 32 * 1024 * 1024
+
 export interface LocalState {
   'pinned-thread-ids'?: unknown
   'thread-project-assignments'?: unknown
@@ -37,7 +39,7 @@ export async function readLocalState(
   const path = join(codexHome, '.codex-global-state.json')
   const file = await optionalStateFile(path)
   if (!file) return {}
-  if (file.size > 4_000_000)
+  if (file.size > MAX_LOCAL_STATE_BYTES)
     throw new Error('Codex state file exceeds the local size limit')
   const parsed: unknown = JSON.parse(await readFile(path, 'utf8'))
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {

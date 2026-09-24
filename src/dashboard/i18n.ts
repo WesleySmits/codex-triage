@@ -1,0 +1,108 @@
+const messages = {
+  en: {
+    skip: 'Skip to task list',
+    language: 'Language',
+    refreshed: 'Synced at {time}',
+    notRefreshed: 'Not synced yet',
+    refresh: 'Refresh',
+    working: 'Working…',
+    view: 'View',
+    allTasks: 'All tasks',
+    pinnedOnly: 'Pinned only',
+    unpinnedOnly: 'Unpinned only',
+    projects: 'Projects',
+    allProjects: 'All projects',
+    noProject: 'No project',
+    unknownProject: 'Unknown project ({id})',
+    untitled: 'Untitled task',
+    filters: 'Task filters',
+    localTasks: 'Local Codex tasks',
+    pinnedTasks: 'Pinned tasks',
+    unpinnedTasks: 'Unpinned tasks',
+    intro: 'Review your active local tasks.',
+    tasks: 'tasks',
+    pinned: 'pinned',
+    syncFailed: 'Sync failed.',
+    syncRetry: 'Check the local Codex app-server and try refreshing.',
+    refreshFailed: 'Could not refresh the task list.',
+    search: 'Search tasks or projects',
+    results: '{count} results',
+    taskTable: 'Active Codex tasks',
+    task: 'Task',
+    project: 'Project',
+    updated: 'Updated',
+    status: 'Status',
+    pinnedTask: 'Pinned',
+    regularTask: 'Active',
+    noTasks: 'No tasks found',
+    adjustFilters: 'Try another search or filter.',
+    of: 'of',
+    previous: 'Previous',
+    next: 'Next',
+    pageOf: 'Page {page} of {total}',
+    sourceNote: 'Local tasks from the Codex app-server.',
+  },
+  nl: {
+    skip: 'Ga naar takenlijst',
+    language: 'Taal',
+    refreshed: 'Gesynchroniseerd om {time}',
+    notRefreshed: 'Nog niet gesynchroniseerd',
+    refresh: 'Verversen',
+    working: 'Bezig…',
+    view: 'Weergave',
+    allTasks: 'Alle taken',
+    pinnedOnly: 'Alleen pinned',
+    unpinnedOnly: 'Alleen unpinned',
+    projects: 'Projecten',
+    allProjects: 'Alle projecten',
+    noProject: 'Zonder project',
+    unknownProject: 'Onbekend project ({id})',
+    untitled: 'Naamloze taak',
+    filters: 'Takenfilters',
+    localTasks: 'Lokale Codex-taken',
+    pinnedTasks: 'Pinned taken',
+    unpinnedTasks: 'Unpinned taken',
+    intro: 'Bekijk je actieve lokale taken.',
+    tasks: 'taken',
+    pinned: 'pinned',
+    syncFailed: 'Synchronisatie mislukt.',
+    syncRetry:
+      'Controleer de lokale Codex app-server en probeer opnieuw te verversen.',
+    refreshFailed: 'De takenlijst kon niet worden ververst.',
+    search: 'Zoek taak of project',
+    results: '{count} resultaten',
+    taskTable: 'Actieve Codex-taken',
+    task: 'Taak',
+    project: 'Project',
+    updated: 'Bijgewerkt',
+    status: 'Status',
+    pinnedTask: 'Vastgepind',
+    regularTask: 'Actief',
+    noTasks: 'Geen taken gevonden',
+    adjustFilters: 'Pas het zoekwoord of de filters aan.',
+    of: 'van',
+    previous: 'Vorige',
+    next: 'Volgende',
+    pageOf: 'Pagina {page} van {total}',
+    sourceNote: 'Lokale taken uit de Codex app-server.',
+  },
+} as const
+
+export type Language = keyof typeof messages
+export type MessageKey = keyof typeof messages.en
+
+export function translate(
+  language: Language,
+  key: MessageKey,
+  values: Record<string, string | number> = {},
+) {
+  const template: string = messages[language][key]
+  return template.replace(/\{(\w+)\}/g, (_, name: string) =>
+    String(values[name] ?? `{${name}}`),
+  )
+}
+
+export function translator(language: Language) {
+  return (key: MessageKey, values?: Record<string, string | number>) =>
+    translate(language, key, values)
+}
