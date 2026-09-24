@@ -1,5 +1,6 @@
 import type { Snapshot, Task } from '../server/task-types'
 import { AnalysisPanel } from './analysis-panel'
+import { filteredSelectionIds } from './analysis-selection'
 import { ArchivePanel } from './archive-panel'
 import { ArchivedList } from './archived-list'
 import type { AutomationGroup } from './automation-groups'
@@ -87,7 +88,15 @@ function MainBody(props: MainListProps) {
     return <ArchivedList archive={props.archive} language={props.language} />
   return (
     <>
-      <AnalysisPanel analysis={props.analysis} language={props.language} />
+      <AnalysisPanel
+        analysis={props.analysis}
+        language={props.language}
+        filteredTaskIds={filteredSelectionIds(
+          props.tasks,
+          props.groups,
+          props.screen === 'automations',
+        )}
+      />
       <MainList {...props} />
     </>
   )
