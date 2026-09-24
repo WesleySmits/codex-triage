@@ -10,6 +10,7 @@ import {
 
 import {
   archiveAutomationGroup,
+  archiveSelectedTasks,
   archiveTask,
   getArchivedTasks,
   unarchiveTask,
@@ -42,6 +43,7 @@ import {
   type ArchiveReceipt,
   type ArchiveTarget,
   remainingGroup,
+  remainingSelection,
 } from './archive-review'
 
 export interface ArchiveControls {
@@ -88,7 +90,7 @@ export function useArchiveActions(
 
   function reviewRemaining() {
     if (busyRef.current || !receipt) return
-    const next = remainingGroup(receipt)
+    const next = remainingGroup(receipt) ?? remainingSelection(receipt)
     if (next) request(next)
   }
 
@@ -163,6 +165,7 @@ async function confirmArchive(context: ConfirmationContext): Promise<void> {
       restoreTask: (task) => unarchiveTask({ data: task }),
       archiveGroup: (automationId, tasks) =>
         archiveAutomationGroup({ data: { automationId, tasks } }),
+      archiveSelection: (tasks) => archiveSelectedTasks({ data: tasks }),
     })
     if (context.mountedRef.current) applyArchiveResult(context, pending, result)
   } catch (cause) {

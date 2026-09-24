@@ -236,6 +236,37 @@ describe('automation group archive policy', () => {
   })
 })
 
+describe('selected task archive policy', () => {
+  it('archives ten selected tasks, then requires a new reviewed request', async () => {
+    const client = new FakeClient()
+    client.active = ids.map((_, index) => thread(index, 'Ordinary task'))
+    const taskStore = store(client)
+    const selected = client.active.map((task) => expected(task))
+    const first = await taskStore.archiveSelection(selected)
+    expect(first.status).toBe('continue')
+    expect(first.confirmedIds).toHaveLength(10)
+    expect(client.writes).toHaveLength(10)
+    expect((await taskStore.archiveSelection(selected)).status).toBe('stale')
+    const remaining = client.active.map((task) => expected(task))
+    expect((await taskStore.archiveSelection(remaining)).status).toBe(
+      'complete',
+    )
+  })
+
+  it('blocks the entire selection when one task changes before writing', async () => {
+    const client = new FakeClient()
+    client.active = [thread(0, 'Ordinary task'), thread(1, 'Ordinary task')]
+    const [first, second] = client.active
+    if (!first || !second) throw new Error('Missing synthetic task')
+    const result = await store(client).archiveSelection([
+      expected(first),
+      { ...expected(second), pinned: true },
+    ])
+    expect(result.status).toBe('stale')
+    expect(client.writes).toEqual([])
+  })
+})
+
 describe('post-write refresh', () => {
   it('loads again after a pre-write refresh finishes', async () => {
     const race = racingClient()

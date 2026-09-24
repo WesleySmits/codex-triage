@@ -48,3 +48,22 @@ export function currentAutomationGroup(
     return null
   return [...group].sort((a, b) => a.createdAt - b.createdAt)
 }
+
+/** Every selected task must still match the state shown in the review. */
+export function currentSelection(
+  snapshot: Snapshot,
+  expected: ExpectedTask[],
+): Task[] | null {
+  if (snapshot.error || expected.length === 0 || expected.length > 20_000)
+    return null
+  const byId = new Map(snapshot.tasks.map((task) => [task.id, task]))
+  if (new Set(expected.map((task) => task.id)).size !== expected.length)
+    return null
+  const tasks: Task[] = []
+  for (const item of expected) {
+    const task = byId.get(item.id)
+    if (!task || !expectedMatches(task, item)) return null
+    tasks.push(task)
+  }
+  return tasks
+}

@@ -3,7 +3,11 @@ import { createServerFn } from '@tanstack/react-start'
 import { analysisCache } from './analysis-cache-instance'
 import { parseAnalysisIds } from './analysis-input'
 import { analysisRunner } from './analysis-runner-instance'
-import { parseArchiveGroup, parseExpectedTask } from './archive-input'
+import {
+  parseArchiveGroup,
+  parseArchiveSelection,
+  parseExpectedTask,
+} from './archive-input'
 import { assertLocalRequest } from './local-request'
 import { taskStore } from './task-store-instance'
 
@@ -47,6 +51,13 @@ export const archiveAutomationGroup = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     assertLocalRequest()
     return taskStore.archiveAutomationGroup(data.automationId, data.tasks)
+  })
+
+export const archiveSelectedTasks = createServerFn({ method: 'POST' })
+  .validator(parseArchiveSelection)
+  .handler(async ({ data }) => {
+    assertLocalRequest()
+    return taskStore.archiveSelection(data)
   })
 
 export const getAnalysisStatus = createServerFn({ method: 'GET' }).handler(

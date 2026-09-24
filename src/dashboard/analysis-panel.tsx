@@ -1,14 +1,24 @@
 import type { AnalysisProgress } from '../server/analysis-types'
+import type { Task } from '../server/task-types'
 import { type Language, translator } from './i18n'
 import type { AnalysisControls } from './use-analysis'
+import type { ArchiveControls } from './use-archive-actions'
 
 interface Props {
   analysis: AnalysisControls
   language: Language
   filteredTaskIds: string[]
+  tasks: Task[]
+  archive: ArchiveControls
 }
 
-export function AnalysisPanel({ analysis, language, filteredTaskIds }: Props) {
+export function AnalysisPanel({
+  analysis,
+  language,
+  filteredTaskIds,
+  tasks,
+  archive,
+}: Props) {
   const t = translator(language)
   const progress = analysis.status?.progress
 
@@ -24,6 +34,8 @@ export function AnalysisPanel({ analysis, language, filteredTaskIds }: Props) {
           analysis={analysis}
           language={language}
           filteredTaskIds={filteredTaskIds}
+          tasks={tasks}
+          archive={archive}
         />
       </div>
       <p className="analysis-note">{t('analysisAdvisory')}</p>
@@ -52,7 +64,13 @@ function AnalysisNotices({
   )
 }
 
-function AnalysisButtons({ analysis, language, filteredTaskIds }: Props) {
+function AnalysisButtons({
+  analysis,
+  language,
+  filteredTaskIds,
+  tasks,
+  archive,
+}: Props) {
   const t = translator(language)
   const running = analysis.status?.progress.status === 'running'
   const disabled = [
@@ -87,6 +105,12 @@ function AnalysisButtons({ analysis, language, filteredTaskIds }: Props) {
       >
         {t('startAnalysis')}
       </button>
+      <ArchiveSelectedButton
+        analysis={analysis}
+        archive={archive}
+        tasks={tasks}
+        language={language}
+      />
       {running && (
         <button
           className="button secondary"
@@ -101,11 +125,40 @@ function AnalysisButtons({ analysis, language, filteredTaskIds }: Props) {
   )
 }
 
+function ArchiveSelectedButton({
+  analysis,
+  archive,
+  tasks,
+  language,
+}: Pick<Props, 'analysis' | 'archive' | 'tasks' | 'language'>) {
+  const t = translator(language)
+  const disabled =
+    analysis.selected.length === 0 ||
+    archive.busy ||
+    archive.reconciliation.required ||
+    !archive.storageChecked
+  return (
+    <button
+      className="button secondary"
+      type="button"
+      disabled={disabled}
+      onClick={() => {
+        const selected = new Set(analysis.selected)
+        const selectedTasks = tasks.filter((task) => selected.has(task.id))
+        if (selectedTasks.length)
+          archive.request({ kind: 'selection', tasks: selectedTasks })
+      }}
+    >
+      {t('archiveSelected', { count: analysis.selected.length })}
+    </button>
+  )
+}
+
 function FilteredSelectionButtons({
   analysis,
   language,
   filteredTaskIds,
-}: Props) {
+}: Pick<Props, 'analysis' | 'language' | 'filteredTaskIds'>) {
   const t = translator(language)
   const filtered = new Set(filteredTaskIds)
   const selectedFilteredCount = analysis.selected.filter((id) =>
