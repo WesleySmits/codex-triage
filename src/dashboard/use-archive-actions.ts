@@ -26,7 +26,7 @@ import {
   browserArchiveStorage,
   clearArchivePending,
   markArchivePending,
-  restoredReconciliation,
+  restoreArchiveLock,
   settleArchiveResult,
 } from './archive-persistence'
 import {
@@ -252,8 +252,9 @@ function usePersistentArchiveLock(
   useEffect(() => {
     mountedRef.current = true
     const storage = browserArchiveStorage()
-    change(restoredReconciliation(storage))
-    if (!storage) setError(ARCHIVE_STORAGE_LOCKED)
+    const restored = restoreArchiveLock(storage)
+    change(restored.reconciliation)
+    if (restored.storageLocked) setError(ARCHIVE_STORAGE_LOCKED)
     setStorageChecked(true)
     function onStorage(event: StorageEvent) {
       if (event.key !== ARCHIVE_SENTINEL_KEY && event.key !== null) return

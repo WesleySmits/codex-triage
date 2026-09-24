@@ -35,9 +35,27 @@ export function hasPendingArchive(storage: ArchiveStorage | null): boolean {
 export function restoredReconciliation(
   storage: ArchiveStorage | null,
 ): Reconciliation {
-  return hasPendingArchive(storage)
-    ? requireReconciliation()
-    : clearReconciliation
+  return restoreArchiveLock(storage).reconciliation
+}
+
+/** Distinguish an unresolved write from storage that cannot be read. */
+export function restoreArchiveLock(storage: ArchiveStorage | null): {
+  reconciliation: Reconciliation
+  storageLocked: boolean
+} {
+  if (!storage)
+    return { reconciliation: requireReconciliation(), storageLocked: true }
+  try {
+    return {
+      reconciliation:
+        storage.getItem(ARCHIVE_SENTINEL_KEY) === null
+          ? clearReconciliation
+          : requireReconciliation(),
+      storageLocked: false,
+    }
+  } catch {
+    return { reconciliation: requireReconciliation(), storageLocked: true }
+  }
 }
 
 /** Write and verify the sentinel synchronously before any provider mutation. */
