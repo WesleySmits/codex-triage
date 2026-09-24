@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { DashboardView } from '../dashboard/dashboard-view'
 import type { Language } from '../dashboard/i18n'
+import { useAnalysis } from '../dashboard/use-analysis'
 import { getTaskSnapshot, refreshTaskSnapshot } from '../server/functions'
 import type { Snapshot } from '../server/task-types'
 
@@ -16,6 +17,7 @@ function Dashboard() {
   const [language, setLanguage] = useState<Language>('en')
   const [refreshing, setRefreshing] = useState(false)
   const [refreshFailed, setRefreshFailed] = useState(false)
+  const analysis = useAnalysis(snapshot.tasks)
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -43,6 +45,7 @@ function Dashboard() {
     setRefreshFailed(false)
     try {
       setSnapshot(await refreshTaskSnapshot())
+      await analysis.reload()
     } catch {
       setRefreshFailed(true)
     } finally {
@@ -60,6 +63,7 @@ function Dashboard() {
       }}
       refreshing={refreshing}
       refreshFailed={refreshFailed}
+      analysis={analysis}
     />
   )
 }
