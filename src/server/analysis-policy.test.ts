@@ -33,7 +33,7 @@ const cases: Case[] = [
     signals: { completed: 0.95, openAction: 0.05, obsolete: 0.02 },
   },
   {
-    name: 'Completed automation run while automation itself continues',
+    name: 'Blocked automation run reported its final result while issue continues',
     advice: 'archive',
     signals: { completed: 0.92, openAction: 0.08, obsolete: 0.02 },
   },
