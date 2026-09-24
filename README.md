@@ -17,6 +17,8 @@ corepack pnpm dev
 
 Open the local URL printed by Vite. The dashboard needs a working local `codex app-server` command to show tasks. It reports a sync error when that source is unavailable. Jev credentials are optional; without them, analysis controls remain disabled.
 
+See the [installation guide](docs/installation.md) for the complete local setup, archive reconciliation, and troubleshooting steps. Read the [privacy guide](docs/privacy.md) before selecting tasks for external Jev analysis.
+
 ## Jev analysis backend
 
 For optional Jev analysis, copy `.env.example` to a local `.env` and set `TYPESAFE_API_KEY`, or set it in the server process environment. The key stays on the server and is never sent to the browser. Without a key, analysis cannot start. No TypeSafe request runs on page load or task refresh.
@@ -45,7 +47,7 @@ The generated route tree is committed so type checking works on a fresh checkout
 
 ## Local Codex data
 
-The server layer in `src/server` connects to `codex app-server --stdio`. It loads active tasks and projects, combines them with local pin and project state, and detects automation IDs in an automation run's opening text. A snapshot stays in server memory until the user explicitly refreshes it. No task data is saved by this project.
+The server layer in `src/server` connects to `codex app-server --stdio`. It loads active tasks and projects, combines them with local pin and project state, and detects automation IDs in an automation run's opening text. A snapshot stays in server memory until the user explicitly refreshes it. Optional analysis stores task IDs and advice, without message text, in an ignored local cache; see the [privacy guide](docs/privacy.md).
 
 Server functions provide snapshot and refresh operations, archived task metadata for unarchive review, individual archive and unarchive, and a group archive operation for one Automation ID. Each write checks fresh local state first and reads the result back. A group call handles at most ten runs. The caller must review the returned snapshot before continuing. Before any write, the browser saves a task-free pending marker; `partial`, `uncertain`, `stale`, `busy`, lost responses, or page unloads keep archive actions locked across reload until both lists are refreshed and the user acknowledges reconciliation. The dashboard reads snapshots and cached analysis, and starts or cancels Jev analysis only on explicit user action. It groups active automation runs by validated Automation ID and offers reviewed archive and restore controls.
 
