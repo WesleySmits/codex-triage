@@ -31,12 +31,36 @@ const analysis: Analysis = {
   signals: {
     completed: 0.4,
     openAction: 0.5,
-    stillRelevant: 0.5,
-    outdated: 0.1,
+    obsolete: 0.1,
   },
   inputTokens: 10,
   outputTokens: 2,
   elapsedMs: 5,
+}
+
+async function checkLegacyCache(directory: string): Promise<void> {
+  const old = {
+    ...analysis,
+    rubricVersion: 'codex-triage-v1',
+    signals: {
+      completed: 0.9,
+      openAction: 0.1,
+      stillRelevant: 0.9,
+      outdated: 0.1,
+    },
+  }
+  await writeFile(
+    join(directory, 'analysis-v1.json'),
+    JSON.stringify({ version: 1, entries: [old] }),
+  )
+  const cache = new AnalysisCache(directory)
+  expect(await cache.get(task)).toBeNull()
+  expect(await cache.views([task])).toMatchObject([
+    { status: 'stale', analysis: old },
+  ])
+  expect(await readdir(directory)).toEqual(['analysis-v1.json'])
+  await cache.save(analysis)
+  expect(await new AnalysisCache(directory).get(task)).toEqual(analysis)
 }
 
 describe('analysis cache', () => {
@@ -66,6 +90,12 @@ describe('analysis cache', () => {
   it('invalidates an old rubric or model', () => {
     expect(isCurrent({ ...analysis, rubricVersion: 'old' }, task)).toBe(false)
     expect(isCurrent({ ...analysis, model: 'old-model' }, task)).toBe(false)
+  })
+
+  it('preserves a v1 entry as stale and replaces it with v2 on save', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'triage-analysis-'))
+    directories.push(directory)
+    await checkLegacyCache(directory)
   })
 
   it('sets aside a malformed derived cache and continues empty', async () => {

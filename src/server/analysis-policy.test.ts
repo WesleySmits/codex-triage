@@ -1,40 +1,82 @@
 import { describe, expect, it } from 'vitest'
 
 import { advise } from './analysis-policy'
+import type { Advice, Signals } from './analysis-types'
 
-describe('Jev advice policy', () => {
-  it('keeps a task with an open action', () => {
-    expect(
-      advise(
-        { completed: 0.9, openAction: 0.8, stillRelevant: 0.9, outdated: 0.1 },
-        false,
-      ),
-    ).toEqual({ advice: 'keep', reason: 'active' })
-  })
+interface Case {
+  name: string
+  advice: Advice
+  signals: Signals
+  pinned?: boolean
+}
 
-  it('only advises archive for a completed unpinned task', () => {
-    const signals = {
-      completed: 0.91,
-      openAction: 0.1,
-      stillRelevant: 0.8,
-      outdated: 0.1,
-    }
-    expect(advise(signals, false)).toEqual({
-      advice: 'archive',
-      reason: 'completed',
-    })
-    expect(advise(signals, true)).toEqual({
-      advice: 'review',
-      reason: 'pinned',
-    })
-  })
+/** Fictional examples are policy checks, not measurements of Jev accuracy. */
+const cases: Case[] = [
+  {
+    name: 'Unfinished implementation with a named next step',
+    advice: 'keep',
+    signals: { completed: 0.05, openAction: 0.95, obsolete: 0.02 },
+  },
+  {
+    name: 'Automation run still waiting for a provider result',
+    advice: 'keep',
+    signals: { completed: 0.1, openAction: 0.9, obsolete: 0.05 },
+  },
+  {
+    name: 'Question awaiting the requested answer',
+    advice: 'keep',
+    signals: { completed: 0.2, openAction: 0.8, obsolete: 0.05 },
+  },
+  {
+    name: 'Completed answer with broader topic still useful',
+    advice: 'archive',
+    signals: { completed: 0.95, openAction: 0.05, obsolete: 0.02 },
+  },
+  {
+    name: 'Blocked automation run reported its final result while issue continues',
+    advice: 'archive',
+    signals: { completed: 0.92, openAction: 0.08, obsolete: 0.02 },
+  },
+  {
+    name: 'Explicitly replaced task with no unresolved action',
+    advice: 'archive',
+    signals: { completed: 0.1, openAction: 0.05, obsolete: 0.95 },
+  },
+  {
+    name: 'Completed but pinned task',
+    advice: 'review',
+    pinned: true,
+    signals: { completed: 0.95, openAction: 0.05, obsolete: 0.02 },
+  },
+  {
+    name: 'Completed task claims a follow-up remains',
+    advice: 'review',
+    signals: { completed: 0.95, openAction: 0.85, obsolete: 0.02 },
+  },
+  {
+    name: 'Obsolete task still has an explicit action',
+    advice: 'review',
+    signals: { completed: 0.05, openAction: 0.9, obsolete: 0.95 },
+  },
+  {
+    name: 'Old task with no explicit closure evidence',
+    advice: 'review',
+    signals: { completed: 0.2, openAction: 0.1, obsolete: 0.1 },
+  },
+  {
+    name: 'Ambiguous completion and open action',
+    advice: 'review',
+    signals: { completed: 0.6, openAction: 0.5, obsolete: 0.1 },
+  },
+  {
+    name: 'Nearly closed task with weak no-action evidence',
+    advice: 'review',
+    signals: { completed: 0.85, openAction: 0.25, obsolete: 0.05 },
+  },
+]
 
-  it('routes uncertain evidence to review', () => {
-    expect(
-      advise(
-        { completed: 0.6, openAction: 0.4, stillRelevant: 0.5, outdated: 0.4 },
-        false,
-      ),
-    ).toEqual({ advice: 'review', reason: 'uncertain' })
+describe('task-specific advice policy', () => {
+  it.each(cases)('$name', ({ advice, pinned = false, signals }) => {
+    expect(advise(signals, pinned).advice).toBe(advice)
   })
 })

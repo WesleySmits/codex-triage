@@ -22,12 +22,19 @@ const analysisSchema = z.object({
     'uncertain',
   ]),
   signals: z
-    .object({
-      completed: signal,
-      openAction: signal,
-      stillRelevant: signal,
-      outdated: signal,
-    })
+    .union([
+      z.object({
+        completed: signal,
+        openAction: signal,
+        obsolete: signal,
+      }),
+      z.object({
+        completed: signal,
+        openAction: signal,
+        stillRelevant: signal,
+        outdated: signal,
+      }),
+    ])
     .nullable(),
   inputTokens: z.number().int().nonnegative(),
   outputTokens: z.number().int().nonnegative(),

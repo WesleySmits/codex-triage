@@ -1,26 +1,26 @@
 import type { Advice, Reason, Signals } from './analysis-types'
 
-export const RUBRIC_VERSION = 'codex-triage-v1'
+export const RUBRIC_VERSION = 'codex-triage-v2'
 export const JEV_MODEL = 'jev-1.13.0'
 
-/** Pilot thresholds are conservative advice rules, not calibrated accuracy. */
+/** Advice applies to this task or automation run, never its broader topic. */
 export function advise(
   signals: Signals,
   pinned: boolean,
 ): { advice: Advice; reason: Reason } {
-  const completed = signals.completed >= 0.85 && signals.openAction <= 0.2
-  const outdated =
-    signals.outdated >= 0.85 &&
-    signals.stillRelevant <= 0.2 &&
-    signals.openAction <= 0.2
-  if (completed || outdated) {
-    if (pinned) return { advice: 'review', reason: 'pinned' }
+  if (pinned) return { advice: 'review', reason: 'pinned' }
+  const closed = signals.completed >= 0.85 || signals.obsolete >= 0.85
+  const noOpenAction = signals.openAction <= 0.2
+  if (closed && noOpenAction)
     return {
       advice: 'archive',
-      reason: completed ? 'completed' : 'outdated',
+      reason: signals.completed >= 0.85 ? 'completed' : 'outdated',
     }
-  }
-  if (signals.openAction >= 0.7 || signals.stillRelevant >= 0.7)
+  if (
+    signals.openAction >= 0.7 &&
+    signals.completed < 0.7 &&
+    signals.obsolete < 0.7
+  )
     return { advice: 'keep', reason: 'active' }
   return { advice: 'review', reason: 'uncertain' }
 }
