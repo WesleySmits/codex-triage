@@ -36,7 +36,7 @@ export const getArchiveMutationStatus = createServerFn({
   method: 'POST',
 }).handler(() => {
   assertLocalRequest()
-  return taskStore.archiveMutationInProgress()
+  return taskStore.archiveMutationStatus()
 })
 
 export const archiveTask = createServerFn({ method: 'POST' })

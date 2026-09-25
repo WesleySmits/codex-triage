@@ -1,11 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
+import { verifiedReviewVersion } from '../dashboard/archive-reconciliation'
 import { DashboardView } from '../dashboard/dashboard-view'
 import type { Language } from '../dashboard/i18n'
 import { useAnalysis } from '../dashboard/use-analysis'
 import { useArchiveActions } from '../dashboard/use-archive-actions'
-import { getTaskSnapshot, refreshTaskSnapshot } from '../server/functions'
+import {
+  getArchiveMutationStatus,
+  getTaskSnapshot,
+  refreshTaskSnapshot,
+} from '../server/functions'
 import type { Snapshot } from '../server/task-types'
 
 export const Route = createFileRoute('/')({
@@ -47,9 +52,9 @@ function Dashboard() {
     setRefreshing(true)
     setRefreshFailed(false)
     try {
-      const fresh = await refreshTaskSnapshot()
+      const { fresh, version } = await loadActiveReview(startedForReview)
       setSnapshot(fresh)
-      if (startedForReview) archive.reviewedActiveSnapshot(fresh)
+      if (startedForReview) archive.reviewedActiveSnapshot(fresh, version)
       await analysis.reload()
     } catch {
       setRefreshFailed(true)
@@ -72,6 +77,13 @@ function Dashboard() {
       archive={archive}
     />
   )
+}
+
+async function loadActiveReview(startedForReview: boolean) {
+  const before = startedForReview ? await getArchiveMutationStatus() : null
+  const fresh = await refreshTaskSnapshot()
+  const after = startedForReview ? await getArchiveMutationStatus() : null
+  return { fresh, version: verifiedReviewVersion(before, after) }
 }
 
 function readLanguage(): Language {

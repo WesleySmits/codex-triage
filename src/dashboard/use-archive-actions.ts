@@ -35,6 +35,7 @@ import {
   requireReconciliation,
   reviewActive,
   reviewArchived,
+  verifiedReviewVersion,
 } from './archive-reconciliation'
 import {
   type ArchiveReceipt,
@@ -55,7 +56,7 @@ export interface ArchiveControls {
   storageChecked: boolean
   canAcknowledge: boolean
   acknowledgeReconciliation: () => Promise<void>
-  reviewedActiveSnapshot: (snapshot: Snapshot) => void
+  reviewedActiveSnapshot: (snapshot: Snapshot, version: string | null) => void
   request: (target: ArchiveTarget) => void
   cancel: () => void
   confirm: () => Promise<void>
@@ -135,8 +136,8 @@ function useArchivedReview(
     busyRef,
     setError,
     () => reconciliation.current.current.required,
-    (startedForReview) => {
-      if (startedForReview) reconciliation.reviewArchived()
+    (version) => {
+      if (version) reconciliation.reviewArchived(version)
     },
   )
 }
@@ -237,11 +238,11 @@ function useArchiveReconciliation(
     require: () => {
       change(requireReconciliation())
     },
-    reviewArchived: () => {
-      change(reviewArchived(stateRef.current))
+    reviewArchived: (version: string) => {
+      change(reviewArchived(stateRef.current, version))
     },
-    reviewActive: (snapshot: Snapshot) => {
-      change(reviewActive(stateRef.current, snapshot))
+    reviewActive: (snapshot: Snapshot, version: string | null) => {
+      change(reviewActive(stateRef.current, snapshot, version))
     },
     acknowledge: () =>
       acknowledgeArchive({
@@ -262,7 +263,7 @@ function useArchivedTasks(
   busyRef: RefObject<boolean>,
   setError: Dispatch<SetStateAction<string | null>>,
   requiresReview: () => boolean,
-  onLoaded: (startedForReview: boolean) => void,
+  onLoaded: (version: string | null) => void,
 ) {
   const [archived, setArchived] = useState<ExpectedTask[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -270,9 +271,12 @@ function useArchivedTasks(
     if (busyRef.current) return
     const startedForReview = requiresReview()
     try {
-      setArchived(await getArchivedTasks())
+      const before = startedForReview ? await getArchiveMutationStatus() : null
+      const tasks = await getArchivedTasks()
+      const after = startedForReview ? await getArchiveMutationStatus() : null
+      setArchived(tasks)
       setLoaded(true)
-      onLoaded(startedForReview)
+      onLoaded(verifiedReviewVersion(before, after))
     } catch (cause) {
       setError((previous) => previous ?? message(cause))
     }

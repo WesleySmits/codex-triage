@@ -12,6 +12,7 @@ import {
   normalizeArchivedTasks,
 } from './task-normalization'
 import type {
+  ArchiveMutationStatus,
   ArchiveOutcome,
   ArchiveResult,
   ExpectedTask,
@@ -28,6 +29,7 @@ export class TaskStore {
   }
   private refreshInFlight: Promise<Snapshot> | null = null
   private mutating = false
+  private mutationVersion = globalThis.crypto.randomUUID()
 
   constructor(
     private readonly makeClient: () => CodexClientLike = createCodexClient,
@@ -40,8 +42,8 @@ export class TaskStore {
     return this.current
   }
 
-  archiveMutationInProgress(): boolean {
-    return this.mutating
+  archiveMutationStatus(): ArchiveMutationStatus {
+    return { busy: this.mutating, version: this.mutationVersion }
   }
 
   /** Refresh only on explicit request, first access, or before and after a write. */
@@ -116,10 +118,12 @@ export class TaskStore {
         snapshot: await this.snapshot(),
       }
     this.mutating = true
+    this.mutationVersion = globalThis.crypto.randomUUID()
     try {
       return await run()
     } finally {
       this.mutating = false
+      this.mutationVersion = globalThis.crypto.randomUUID()
     }
   }
 

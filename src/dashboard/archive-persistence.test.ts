@@ -70,7 +70,9 @@ describe('cross-tab archive events', () => {
     expect(clearArchivePending(shared, reviewedMarker)).toBe(false)
     expect(shared.getItem(ARCHIVE_SENTINEL_KEY)).toBe('pending:replacement')
   })
+})
 
+describe('cross-tab archive events', () => {
   it('requires a fresh review after another tab clears a pending marker', () => {
     const saved = storage()
     const marker = pendingMarker(saved)
@@ -80,7 +82,8 @@ describe('cross-tab archive events', () => {
     })
     expect(change.marker).toBe(marker)
     let state = reviewArchived(
-      reviewActive(change.reconciliation, activeSnapshot),
+      reviewActive(change.reconciliation, activeSnapshot, 'reviewed'),
+      'reviewed',
     )
     expect(canAcknowledge(state)).toBe(true)
     expect(mayAcknowledgeArchiveMarker(saved, change.marker, true)).toBe(false)
@@ -91,7 +94,10 @@ describe('cross-tab archive events', () => {
     })
     expect(change.marker).toBeNull()
     expect(canAcknowledge(change.reconciliation)).toBe(false)
-    state = reviewArchived(reviewActive(change.reconciliation, activeSnapshot))
+    state = reviewArchived(
+      reviewActive(change.reconciliation, activeSnapshot, 'reviewed'),
+      'reviewed',
+    )
     expect(canAcknowledge(state)).toBe(true)
     expect(mayAcknowledgeArchiveMarker(saved, change.marker, false)).toBe(true)
   })
@@ -122,8 +128,8 @@ describe('archive persistence', () => {
       const write = vi.fn()
       if (canStartWrite(state, false)) write()
       expect(write, outcome).not.toHaveBeenCalled()
-      state = reviewActive(state, activeSnapshot)
-      state = reviewArchived(state)
+      state = reviewActive(state, activeSnapshot, 'reviewed')
+      state = reviewArchived(state, 'reviewed')
       expect(canStartWrite(state, false)).toBe(false)
       expect(clearArchivePending(saved, marker)).toBe(true)
       state = acknowledge(state)

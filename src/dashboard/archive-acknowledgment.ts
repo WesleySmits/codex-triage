@@ -1,5 +1,6 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 
+import type { ArchiveMutationStatus } from '../server/task-types'
 import {
   ARCHIVE_EXTERNAL_PENDING,
   ARCHIVE_STORAGE_LOCKED,
@@ -19,7 +20,7 @@ interface AcknowledgmentContext {
   acknowledging: RefObject<boolean>
   state: RefObject<Reconciliation>
   marker: RefObject<string | null>
-  readServerBusy: () => Promise<boolean>
+  readServerBusy: () => Promise<ArchiveMutationStatus>
   storage: () => ArchiveStorage | null
   setAcknowledging: Dispatch<SetStateAction<boolean>>
   setError: Dispatch<SetStateAction<string | null>>
@@ -44,21 +45,21 @@ export async function acknowledgeArchive({
   setAcknowledging(true)
   const reviewedMarker = marker.current
   try {
-    const serverBusy = await readServerBusy()
-    if (serverBusy) {
+    const serverStatus = await readServerBusy()
+    if (!reviewMatchesServer(state.current, serverStatus)) {
       setError(ARCHIVE_EXTERNAL_PENDING)
       change(requireReconciliation())
       return
     }
     const currentStorage = storage()
     if (
-      marker.current !== reviewedMarker ||
-      !canAcknowledge(state.current) ||
-      !mayAcknowledgeArchiveMarker(
-        currentStorage,
+      !canClearReviewedMarker({
+        state: state.current,
+        currentMarker: marker.current,
         reviewedMarker,
-        serverBusy,
-      ) ||
+        storage: currentStorage,
+        server: serverStatus,
+      }) ||
       !clearArchivePending(currentStorage, reviewedMarker)
     ) {
       setError(ARCHIVE_STORAGE_LOCKED)
@@ -75,4 +76,31 @@ export async function acknowledgeArchive({
     acknowledging.current = false
     setAcknowledging(false)
   }
+}
+
+function reviewMatchesServer(
+  state: Reconciliation,
+  server: ArchiveMutationStatus,
+): boolean {
+  return !server.busy && state.reviewVersion === server.version
+}
+
+function canClearReviewedMarker({
+  state,
+  currentMarker,
+  reviewedMarker,
+  storage,
+  server,
+}: {
+  state: Reconciliation
+  currentMarker: string | null
+  reviewedMarker: string | null
+  storage: ArchiveStorage | null
+  server: ArchiveMutationStatus
+}): boolean {
+  return (
+    currentMarker === reviewedMarker &&
+    canAcknowledge(state) &&
+    mayAcknowledgeArchiveMarker(storage, reviewedMarker, server.busy)
+  )
 }

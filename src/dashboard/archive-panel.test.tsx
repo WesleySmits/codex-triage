@@ -17,6 +17,7 @@ function archiveControls(canAcknowledge: boolean): ArchiveControls {
       required: true,
       activeReviewed: canAcknowledge,
       archivedReviewed: canAcknowledge,
+      reviewVersion: canAcknowledge ? 'reviewed' : null,
     },
     storageChecked: true,
     canAcknowledge,
