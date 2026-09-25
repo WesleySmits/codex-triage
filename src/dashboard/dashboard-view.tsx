@@ -42,6 +42,7 @@ export function DashboardView({
   const { tasks } = snapshot
   const filters = useDashboardFilters(snapshot, language)
   const groups = automationGroups(tasks, filters.filtered, analysis.views)
+  const refresh = { active: onRefresh, busy: refreshing, failed: refreshFailed }
   return (
     <>
       <DashboardHeader
@@ -59,10 +60,9 @@ export function DashboardView({
           project={filters.project}
           counts={projectCounts(filters.viewed)}
           pinnedCount={filters.pinnedCount}
-          language={language}
+          {...{ language, screen }}
           onView={filters.chooseView}
           onProject={filters.chooseProject}
-          screen={screen}
           onScreen={chooseScreen}
           automationCount={groups.length}
         />
@@ -71,7 +71,7 @@ export function DashboardView({
           language={language}
           view={filters.view}
           pinnedCount={filters.pinnedCount}
-          refreshFailed={refreshFailed}
+          refresh={refresh}
           tasks={filters.filtered}
           search={filters.search}
           onSearch={filters.changeSearch}

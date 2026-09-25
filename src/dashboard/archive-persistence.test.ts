@@ -6,13 +6,18 @@ import {
   clearArchivePending,
   hasPendingArchive,
   markArchivePending,
+  mayAcknowledgeArchiveMarker,
+  reconcileArchiveStorageEvent,
   restoreArchiveLock,
   restoredReconciliation,
   settleArchiveResult,
 } from './archive-persistence'
 import {
   acknowledge,
+  canAcknowledge,
   canStartWrite,
+  clearReconciliation,
+  requireReconciliation,
   reviewActive,
   reviewArchived,
 } from './archive-reconciliation'
@@ -36,6 +41,52 @@ const activeSnapshot = {
   refreshedAt: 1,
   error: null,
 }
+
+describe('cross-tab archive events', () => {
+  it('requires a fresh review after another tab clears a pending marker', () => {
+    const saved = storage()
+    expect(markArchivePending(saved)).toBe(true)
+    let change = reconcileArchiveStorageEvent(clearReconciliation, saved, {
+      key: ARCHIVE_SENTINEL_KEY,
+      newValue: 'pending',
+    })
+    expect(change.externalPending).toBe(true)
+    let state = reviewArchived(
+      reviewActive(change.reconciliation, activeSnapshot),
+    )
+    expect(canAcknowledge(state)).toBe(true)
+    expect(mayAcknowledgeArchiveMarker(saved, change.externalPending)).toBe(
+      false,
+    )
+    expect(clearArchivePending(saved)).toBe(true)
+    change = reconcileArchiveStorageEvent(state, saved, {
+      key: ARCHIVE_SENTINEL_KEY,
+      newValue: null,
+    })
+    expect(change.externalPending).toBe(false)
+    expect(canAcknowledge(change.reconciliation)).toBe(false)
+    state = reviewArchived(reviewActive(change.reconciliation, activeSnapshot))
+    expect(canAcknowledge(state)).toBe(true)
+    expect(mayAcknowledgeArchiveMarker(saved, change.externalPending)).toBe(
+      true,
+    )
+  })
+
+  it('locks on another tab starting an archive, while unrelated storage changes do nothing', () => {
+    const saved = storage()
+    let change = reconcileArchiveStorageEvent(clearReconciliation, saved, {
+      key: 'codex-triage-language',
+      newValue: 'nl',
+    })
+    expect(change.reconciliation.required).toBe(false)
+    expect(markArchivePending(saved)).toBe(true)
+    change = reconcileArchiveStorageEvent(change.reconciliation, saved, {
+      key: ARCHIVE_SENTINEL_KEY,
+      newValue: 'pending',
+    })
+    expect(change.reconciliation).toEqual(requireReconciliation())
+  })
+})
 
 describe('archive persistence', () => {
   it('keeps uncertain and in-flight calls locked after reload until review', () => {

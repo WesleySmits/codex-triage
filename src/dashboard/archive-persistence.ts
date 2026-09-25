@@ -7,6 +7,7 @@ import {
 
 export const ARCHIVE_SENTINEL_KEY = 'codex-triage-archive-pending-v1'
 export const ARCHIVE_STORAGE_LOCKED = 'archive-storage-locked'
+export const ARCHIVE_EXTERNAL_PENDING = 'archive-external-pending'
 
 export interface ArchiveStorage {
   getItem(key: string): string | null
@@ -56,6 +57,28 @@ export function restoreArchiveLock(storage: ArchiveStorage | null): {
   } catch {
     return { reconciliation: requireReconciliation(), storageLocked: true }
   }
+}
+
+/** A cross-tab write invalidates reviews taken before that write settled. */
+export function reconcileArchiveStorageEvent(
+  current: Reconciliation,
+  storage: ArchiveStorage | null,
+  event: Pick<StorageEvent, 'key' | 'newValue'>,
+): { reconciliation: Reconciliation; externalPending: boolean } {
+  if (event.key !== ARCHIVE_SENTINEL_KEY && event.key !== null)
+    return { reconciliation: current, externalPending: false }
+  return {
+    reconciliation: requireReconciliation(),
+    externalPending: hasPendingArchive(storage),
+  }
+}
+
+/** A review in this tab must never remove a still-active marker from another tab. */
+export function mayAcknowledgeArchiveMarker(
+  storage: ArchiveStorage | null,
+  externalPending: boolean,
+): boolean {
+  return storage !== null && !externalPending
 }
 
 /** Write and verify the sentinel synchronously before any provider mutation. */

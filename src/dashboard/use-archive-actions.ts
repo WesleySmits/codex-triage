@@ -3,7 +3,6 @@ import {
   type RefObject,
   type SetStateAction,
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from 'react'
@@ -22,12 +21,12 @@ import type {
 } from '../server/task-types'
 import { executeArchive } from './archive-command'
 import {
-  ARCHIVE_SENTINEL_KEY,
+  ARCHIVE_EXTERNAL_PENDING,
   ARCHIVE_STORAGE_LOCKED,
   browserArchiveStorage,
   clearArchivePending,
   markArchivePending,
-  restoreArchiveLock,
+  mayAcknowledgeArchiveMarker,
   settleArchiveResult,
 } from './archive-persistence'
 import {
@@ -45,6 +44,7 @@ import {
   remainingGroup,
   remainingSelection,
 } from './archive-review'
+import { usePersistentArchiveLock } from './use-persistent-archive-lock'
 
 export interface ArchiveControls {
   pending: ArchiveTarget | null
@@ -75,7 +75,7 @@ export function useArchiveActions(
   const [error, setError] = useState<string | null>(null)
   const reconciliation = useArchiveReconciliation(busyRef, setError)
   const archiveLock = usePersistentArchiveLock(
-    reconciliation.change,
+    reconciliation,
     setError,
     setPending,
   )
@@ -212,10 +212,11 @@ function applyArchiveResult(
 
 function useArchiveReconciliation(
   busyRef: RefObject<boolean>,
-  setError: (error: string | null) => void,
+  setError: Dispatch<SetStateAction<string | null>>,
 ) {
   const [state, setState] = useState(requireReconciliation)
   const stateRef = useRef(state)
+  const externalPendingRef = useRef(false)
   const change = useCallback((next: Reconciliation) => {
     stateRef.current = next
     setState(next)
@@ -223,8 +224,9 @@ function useArchiveReconciliation(
   return {
     state,
     current: stateRef,
+    externalPending: externalPendingRef,
     change,
-    canAcknowledge: canAcknowledge(state),
+    canAcknowledge: canAcknowledge(state) && !externalPendingRef.current,
     require: () => {
       change(requireReconciliation())
     },
@@ -236,41 +238,18 @@ function useArchiveReconciliation(
     },
     acknowledge: () => {
       if (busyRef.current || !canAcknowledge(stateRef.current)) return
-      if (!clearArchivePending(browserArchiveStorage())) {
+      const storage = browserArchiveStorage()
+      if (!mayAcknowledgeArchiveMarker(storage, externalPendingRef.current)) {
+        setError(ARCHIVE_EXTERNAL_PENDING)
+        return
+      }
+      if (!clearArchivePending(storage)) {
         setError(ARCHIVE_STORAGE_LOCKED)
         return
       }
       change(acknowledge(stateRef.current))
     },
   }
-}
-
-function usePersistentArchiveLock(
-  change: (next: Reconciliation) => void,
-  setError: (error: string | null) => void,
-  setPending: (target: ArchiveTarget | null) => void,
-) {
-  const mountedRef = useRef(false)
-  const [storageChecked, setStorageChecked] = useState(false)
-  useEffect(() => {
-    mountedRef.current = true
-    const storage = browserArchiveStorage()
-    const restored = restoreArchiveLock(storage)
-    change(restored.reconciliation)
-    if (restored.storageLocked) setError(ARCHIVE_STORAGE_LOCKED)
-    setStorageChecked(true)
-    function onStorage(event: StorageEvent) {
-      if (event.key !== ARCHIVE_SENTINEL_KEY && event.key !== null) return
-      setPending(null)
-      change(requireReconciliation())
-    }
-    window.addEventListener('storage', onStorage)
-    return () => {
-      mountedRef.current = false
-      window.removeEventListener('storage', onStorage)
-    }
-  }, [change, setError, setPending])
-  return { mountedRef, storageChecked }
 }
 
 function useArchivedTasks(
