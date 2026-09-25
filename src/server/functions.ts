@@ -32,6 +32,13 @@ export const getArchivedTasks = createServerFn({ method: 'GET' }).handler(
   },
 )
 
+export const getArchiveMutationStatus = createServerFn({
+  method: 'POST',
+}).handler(() => {
+  assertLocalRequest()
+  return taskStore.archiveMutationInProgress()
+})
+
 export const archiveTask = createServerFn({ method: 'POST' })
   .validator(parseExpectedTask)
   .handler(async ({ data }) => {

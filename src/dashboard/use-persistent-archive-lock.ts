@@ -21,7 +21,7 @@ import type { ArchiveTarget } from './archive-review'
 interface LockReconciliation {
   change: (next: Reconciliation) => void
   current: RefObject<Reconciliation>
-  externalPending: RefObject<boolean>
+  marker: RefObject<string | null>
 }
 
 export function usePersistentArchiveLock(
@@ -29,13 +29,14 @@ export function usePersistentArchiveLock(
   setError: Dispatch<SetStateAction<string | null>>,
   setPending: (target: ArchiveTarget | null) => void,
 ) {
-  const { change, current, externalPending } = reconciliation
+  const { change, current, marker } = reconciliation
   const mountedRef = useRef(false)
   const [storageChecked, setStorageChecked] = useState(false)
   useEffect(() => {
     mountedRef.current = true
     const storage = browserArchiveStorage()
     const restored = restoreArchiveLock(storage)
+    marker.current = restored.marker
     change(restored.reconciliation)
     if (restored.storageLocked) setError(ARCHIVE_STORAGE_LOCKED)
     setStorageChecked(true)
@@ -47,9 +48,9 @@ export function usePersistentArchiveLock(
         browserArchiveStorage(),
         event,
       )
-      externalPending.current = changed.externalPending
+      marker.current = changed.marker
       change(changed.reconciliation)
-      if (!changed.externalPending)
+      if (changed.marker === null)
         setError((previous) =>
           previous === ARCHIVE_EXTERNAL_PENDING ? null : previous,
         )
@@ -59,6 +60,6 @@ export function usePersistentArchiveLock(
       mountedRef.current = false
       window.removeEventListener('storage', onStorage)
     }
-  }, [change, current, externalPending, setError, setPending])
+  }, [change, current, marker, setError, setPending])
   return { mountedRef, storageChecked }
 }

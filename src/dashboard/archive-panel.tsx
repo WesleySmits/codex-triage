@@ -177,7 +177,7 @@ function ReconciliationReview({
         className="button secondary"
         type="button"
         disabled={!archive.canAcknowledge || archive.busy}
-        onClick={archive.acknowledgeReconciliation}
+        onClick={() => void archive.acknowledgeReconciliation()}
       >
         {t('archiveAcknowledge')}
       </button>

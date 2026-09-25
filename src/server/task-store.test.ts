@@ -289,6 +289,7 @@ describe('post-write refresh', () => {
     const taskStore = store(client)
     const archived = taskStore.setArchived(expected(task), true)
     await race.writeStarted.promise
+    expect(taskStore.archiveMutationInProgress()).toBe(true)
 
     race.delayRead()
     const staleRead = taskStore.refresh()
@@ -298,6 +299,7 @@ describe('post-write refresh', () => {
 
     expect((await staleRead).tasks).toHaveLength(1)
     const result = await archived
+    expect(taskStore.archiveMutationInProgress()).toBe(false)
     expect(result.status).toBe('complete')
     expect(result.snapshot.tasks).toEqual([])
     expect((await taskStore.snapshot()).tasks).toEqual([])

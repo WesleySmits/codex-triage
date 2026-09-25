@@ -12,6 +12,7 @@ import {
   archiveSelectedTasks,
   archiveTask,
   getArchivedTasks,
+  getArchiveMutationStatus,
   unarchiveTask,
 } from '../server/functions'
 import type {
@@ -19,18 +20,15 @@ import type {
   ExpectedTask,
   Snapshot,
 } from '../server/task-types'
+import { acknowledgeArchive } from './archive-acknowledgment'
 import { executeArchive } from './archive-command'
 import {
-  ARCHIVE_EXTERNAL_PENDING,
   ARCHIVE_STORAGE_LOCKED,
   browserArchiveStorage,
-  clearArchivePending,
   markArchivePending,
-  mayAcknowledgeArchiveMarker,
   settleArchiveResult,
 } from './archive-persistence'
 import {
-  acknowledge,
   canAcknowledge,
   canStartWrite,
   type Reconciliation,
@@ -56,7 +54,7 @@ export interface ArchiveControls {
   reconciliation: Reconciliation
   storageChecked: boolean
   canAcknowledge: boolean
-  acknowledgeReconciliation: () => void
+  acknowledgeReconciliation: () => Promise<void>
   reviewedActiveSnapshot: (snapshot: Snapshot) => void
   request: (target: ArchiveTarget) => void
   cancel: () => void
@@ -157,17 +155,18 @@ interface ConfirmationContext {
 }
 
 async function confirmArchive(context: ConfirmationContext): Promise<void> {
-  const pending = beginArchive(context)
-  if (!pending) return
+  const started = beginArchive(context)
+  if (!started) return
   try {
-    const result = await executeArchive(pending, {
+    const result = await executeArchive(started.target, {
       archiveTask: (task) => archiveTask({ data: task }),
       restoreTask: (task) => unarchiveTask({ data: task }),
       archiveGroup: (automationId, tasks) =>
         archiveAutomationGroup({ data: { automationId, tasks } }),
       archiveSelection: (tasks) => archiveSelectedTasks({ data: tasks }),
     })
-    if (context.mountedRef.current) applyArchiveResult(context, pending, result)
+    if (context.mountedRef.current)
+      applyArchiveResult(context, started.target, result, started.marker)
   } catch (cause) {
     // A lost response may follow a write. Keep the target out of the retry path.
     context.setError(message(cause))
@@ -178,36 +177,42 @@ async function confirmArchive(context: ConfirmationContext): Promise<void> {
   }
 }
 
-function beginArchive(context: ConfirmationContext): ArchiveTarget | null {
+function beginArchive(
+  context: ConfirmationContext,
+): { target: ArchiveTarget; marker: string } | null {
   const { pending, busyRef, reconciliation } = context
   if (
     !pending ||
     !canStartWrite(reconciliation.current.current, busyRef.current)
   )
     return null
-  if (!markArchivePending(browserArchiveStorage())) {
+  const marker = markArchivePending(browserArchiveStorage())
+  if (!marker) {
     context.setPending(null)
     context.setError(ARCHIVE_STORAGE_LOCKED)
     reconciliation.require()
     return null
   }
   busyRef.current = true
+  reconciliation.marker.current = marker
   context.setBusy(true)
   context.setError(null)
   context.setPending(null)
-  return pending
+  return { target: pending, marker }
 }
 
 function applyArchiveResult(
   context: ConfirmationContext,
   target: ArchiveTarget,
   result: ArchiveResult,
+  marker: string,
 ) {
   context.onSnapshot(result.snapshot)
   context.setReceipt({ target, result })
   context.invalidate()
-  if (!settleArchiveResult(browserArchiveStorage(), result))
+  if (!settleArchiveResult(browserArchiveStorage(), result, marker))
     context.reconciliation.require()
+  else context.reconciliation.marker.current = null
 }
 
 function useArchiveReconciliation(
@@ -216,7 +221,9 @@ function useArchiveReconciliation(
 ) {
   const [state, setState] = useState(requireReconciliation)
   const stateRef = useRef(state)
-  const externalPendingRef = useRef(false)
+  const markerRef = useRef<string | null>(null)
+  const acknowledgingRef = useRef(false)
+  const [acknowledging, setAcknowledging] = useState(false)
   const change = useCallback((next: Reconciliation) => {
     stateRef.current = next
     setState(next)
@@ -224,9 +231,9 @@ function useArchiveReconciliation(
   return {
     state,
     current: stateRef,
-    externalPending: externalPendingRef,
+    marker: markerRef,
     change,
-    canAcknowledge: canAcknowledge(state) && !externalPendingRef.current,
+    canAcknowledge: canAcknowledge(state) && !acknowledging,
     require: () => {
       change(requireReconciliation())
     },
@@ -236,19 +243,18 @@ function useArchiveReconciliation(
     reviewActive: (snapshot: Snapshot) => {
       change(reviewActive(stateRef.current, snapshot))
     },
-    acknowledge: () => {
-      if (busyRef.current || !canAcknowledge(stateRef.current)) return
-      const storage = browserArchiveStorage()
-      if (!mayAcknowledgeArchiveMarker(storage, externalPendingRef.current)) {
-        setError(ARCHIVE_EXTERNAL_PENDING)
-        return
-      }
-      if (!clearArchivePending(storage)) {
-        setError(ARCHIVE_STORAGE_LOCKED)
-        return
-      }
-      change(acknowledge(stateRef.current))
-    },
+    acknowledge: () =>
+      acknowledgeArchive({
+        busy: busyRef,
+        acknowledging: acknowledgingRef,
+        state: stateRef,
+        marker: markerRef,
+        readServerBusy: () => getArchiveMutationStatus(),
+        storage: browserArchiveStorage,
+        setAcknowledging,
+        setError,
+        change,
+      }),
   }
 }
 

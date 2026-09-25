@@ -40,6 +40,10 @@ export class TaskStore {
     return this.current
   }
 
+  archiveMutationInProgress(): boolean {
+    return this.mutating
+  }
+
   /** Refresh only on explicit request, first access, or before and after a write. */
   async refresh(): Promise<Snapshot> {
     return this.refreshInFlight ?? this.startRefresh()
