@@ -10,7 +10,12 @@ function InitialArchiveView() {
   return createElement(
     'div',
     null,
-    createElement(ArchivePanel, { archive, language: 'en' }),
+    createElement(ArchivePanel, {
+      archive,
+      language: 'en',
+      onRefreshActive: () => undefined,
+      refreshing: false,
+    }),
     createElement('button', {
       disabled: archive.reconciliation.required,
       type: 'button',

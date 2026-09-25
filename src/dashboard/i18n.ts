@@ -115,9 +115,10 @@ const messages = {
     archiveWorking: 'Checking current state and applying your choice…',
     archiveUnknownError: 'The request did not return a confirmed result.',
     archiveStorageLocked:
-      'An archive action is unresolved or browser storage is unavailable.',
+      'An archive action is unresolved, another tab is still writing, or browser storage is unavailable.',
     archiveReconcile:
-      'Stop here. Refresh the active and archived lists, check the confirmed IDs, and reconcile before another action. Do not retry this request blindly.',
+      'An archive request may still be running in another tab, or its result needs review. After it finishes, refresh both lists here, check the changes, then acknowledge before another action.',
+    refreshActive: 'Refresh active list',
     archiveReconcileActive: '{done} Active list refreshed',
     archiveReconcileArchived: '{done} Archived list refreshed',
     archiveAcknowledge: 'I reviewed both lists; allow another action',
@@ -256,9 +257,10 @@ const messages = {
     archiveWorking: 'Actuele status controleren en je keuze uitvoeren…',
     archiveUnknownError: 'Het verzoek leverde geen bevestigd resultaat op.',
     archiveStorageLocked:
-      'Een archiefactie is nog niet afgestemd of browseropslag is niet beschikbaar.',
+      'Een archiefactie is nog niet afgestemd, een ander tabblad is nog bezig, of browseropslag is niet beschikbaar.',
     archiveReconcile:
-      'Stop hier. Ververs de actieve en gearchiveerde lijsten, controleer de bevestigde IDs en stem de status af vóór een volgende actie. Herhaal dit verzoek niet blind.',
+      'Een archiefactie loopt mogelijk nog in een ander tabblad of moet worden gecontroleerd. Ververs na afloop beide lijsten hier, controleer de wijzigingen en bevestig daarna vóór een nieuwe actie.',
+    refreshActive: 'Actieve lijst verversen',
     archiveReconcileActive: '{done} Actieve lijst ververst',
     archiveReconcileArchived: '{done} Gearchiveerde lijst ververst',
     archiveAcknowledge:
@@ -281,21 +283,17 @@ const messages = {
     restoreTask: 'Herstel',
   },
 } as const
-
 export type Language = keyof typeof messages
 export type MessageKey = keyof typeof messages.en
-
 export function translate(
   language: Language,
   key: MessageKey,
   values: Record<string, string | number> = {},
 ) {
-  const template: string = messages[language][key]
-  return template.replace(/\{(\w+)\}/g, (_, name: string) =>
+  return messages[language][key].replace(/\{(\w+)\}/g, (_, name: string) =>
     String(values[name] ?? `{${name}}`),
   )
 }
-
 export function translator(language: Language) {
   return (key: MessageKey, values?: Record<string, string | number>) =>
     translate(language, key, values)

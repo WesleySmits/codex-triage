@@ -16,7 +16,7 @@ interface Props {
   language: Language
   view: View
   pinnedCount: number
-  refreshFailed: boolean
+  refresh: { active: () => void; busy: boolean; failed: boolean }
   tasks: Task[]
   search: string
   onSearch: (value: string) => void
@@ -35,7 +35,7 @@ export function DashboardMain({
   language,
   view,
   pinnedCount,
-  refreshFailed,
+  refresh,
   tasks,
   search,
   onSearch,
@@ -59,10 +59,15 @@ export function DashboardMain({
       />
       <MainNotices
         snapshot={snapshot}
-        refreshFailed={refreshFailed}
+        refreshFailed={refresh.failed}
         language={language}
       />
-      <ArchivePanel archive={archive} language={language} />
+      <ArchivePanel
+        archive={archive}
+        language={language}
+        onRefreshActive={refresh.active}
+        refreshing={refresh.busy}
+      />
       <MainBody
         {...{
           screen,
@@ -108,7 +113,7 @@ function MainNotices({
   snapshot,
   refreshFailed,
   language,
-}: Pick<Props, 'snapshot' | 'refreshFailed' | 'language'>) {
+}: Pick<Props, 'snapshot' | 'language'> & { refreshFailed: boolean }) {
   const t = translator(language)
   return (
     <>

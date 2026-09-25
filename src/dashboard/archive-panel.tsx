@@ -1,5 +1,8 @@
 import { PendingReview } from './archive-dialog'
-import { ARCHIVE_STORAGE_LOCKED } from './archive-persistence'
+import {
+  ARCHIVE_EXTERNAL_PENDING,
+  ARCHIVE_STORAGE_LOCKED,
+} from './archive-persistence'
 import { needsReconciliation } from './archive-reconciliation'
 import { remainingGroup, remainingSelection } from './archive-review'
 import { type Language, translator } from './i18n'
@@ -10,7 +13,17 @@ interface Props {
   language: Language
 }
 
-export function ArchivePanel({ archive, language }: Props) {
+interface PanelProps extends Props {
+  onRefreshActive: () => void
+  refreshing: boolean
+}
+
+export function ArchivePanel({
+  archive,
+  language,
+  onRefreshActive,
+  refreshing,
+}: PanelProps) {
   const t = translator(language)
   return (
     <>
@@ -24,7 +37,12 @@ export function ArchivePanel({ archive, language }: Props) {
         {archive.busy && <p role="status">{t('archiveWorking')}</p>}
         <ArchiveError archive={archive} language={language} />
         <ArchiveReceiptView archive={archive} language={language} />
-        <ReconciliationReview archive={archive} language={language} />
+        <ReconciliationReview
+          archive={archive}
+          language={language}
+          onRefreshActive={onRefreshActive}
+          refreshing={refreshing}
+        />
       </section>
     </>
   )
@@ -36,7 +54,8 @@ function ArchiveError({ archive, language }: Props) {
   return (
     <p className="notice error" role="alert">
       {t('archiveUnknownError')}{' '}
-      {archive.error === ARCHIVE_STORAGE_LOCKED
+      {archive.error === ARCHIVE_STORAGE_LOCKED ||
+      archive.error === ARCHIVE_EXTERNAL_PENDING
         ? t('archiveStorageLocked')
         : archive.error}{' '}
       {t('archiveReconcile')}
@@ -113,7 +132,12 @@ function ReceiptReconciliation({
   return blocked ? <p>{translator(language)('archiveReconcile')}</p> : null
 }
 
-function ReconciliationReview({ archive, language }: Props) {
+function ReconciliationReview({
+  archive,
+  language,
+  onRefreshActive,
+  refreshing,
+}: PanelProps) {
   if (!archive.storageChecked || !archive.reconciliation.required) return null
   const t = translator(language)
   return (
@@ -123,6 +147,22 @@ function ReconciliationReview({ archive, language }: Props) {
       aria-label={t('archiveReviewTitle')}
     >
       <p>{t('archiveReconcile')}</p>
+      <button
+        className="button secondary"
+        type="button"
+        disabled={refreshing || archive.busy}
+        onClick={onRefreshActive}
+      >
+        {refreshing ? t('working') : t('refreshActive')}
+      </button>
+      <button
+        className="button secondary"
+        type="button"
+        disabled={archive.busy}
+        onClick={() => void archive.loadArchived()}
+      >
+        {t('refreshArchived')}
+      </button>
       <p>
         {t('archiveReconcileActive', {
           done: reviewMarker(archive.reconciliation.activeReviewed),
@@ -137,7 +177,7 @@ function ReconciliationReview({ archive, language }: Props) {
         className="button secondary"
         type="button"
         disabled={!archive.canAcknowledge || archive.busy}
-        onClick={archive.acknowledgeReconciliation}
+        onClick={() => void archive.acknowledgeReconciliation()}
       >
         {t('archiveAcknowledge')}
       </button>

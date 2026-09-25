@@ -3,7 +3,6 @@ import {
   type RefObject,
   type SetStateAction,
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from 'react'
@@ -13,6 +12,7 @@ import {
   archiveSelectedTasks,
   archiveTask,
   getArchivedTasks,
+  getArchiveMutationStatus,
   unarchiveTask,
 } from '../server/functions'
 import type {
@@ -20,24 +20,22 @@ import type {
   ExpectedTask,
   Snapshot,
 } from '../server/task-types'
+import { acknowledgeArchive } from './archive-acknowledgment'
 import { executeArchive } from './archive-command'
 import {
-  ARCHIVE_SENTINEL_KEY,
   ARCHIVE_STORAGE_LOCKED,
   browserArchiveStorage,
-  clearArchivePending,
   markArchivePending,
-  restoreArchiveLock,
   settleArchiveResult,
 } from './archive-persistence'
 import {
-  acknowledge,
   canAcknowledge,
   canStartWrite,
   type Reconciliation,
   requireReconciliation,
   reviewActive,
   reviewArchived,
+  verifiedReviewVersion,
 } from './archive-reconciliation'
 import {
   type ArchiveReceipt,
@@ -45,6 +43,7 @@ import {
   remainingGroup,
   remainingSelection,
 } from './archive-review'
+import { usePersistentArchiveLock } from './use-persistent-archive-lock'
 
 export interface ArchiveControls {
   pending: ArchiveTarget | null
@@ -56,8 +55,8 @@ export interface ArchiveControls {
   reconciliation: Reconciliation
   storageChecked: boolean
   canAcknowledge: boolean
-  acknowledgeReconciliation: () => void
-  reviewedActiveSnapshot: (snapshot: Snapshot) => void
+  acknowledgeReconciliation: () => Promise<void>
+  reviewedActiveSnapshot: (snapshot: Snapshot, version: string | null) => void
   request: (target: ArchiveTarget) => void
   cancel: () => void
   confirm: () => Promise<void>
@@ -75,7 +74,7 @@ export function useArchiveActions(
   const [error, setError] = useState<string | null>(null)
   const reconciliation = useArchiveReconciliation(busyRef, setError)
   const archiveLock = usePersistentArchiveLock(
-    reconciliation.change,
+    reconciliation,
     setError,
     setPending,
   )
@@ -137,8 +136,8 @@ function useArchivedReview(
     busyRef,
     setError,
     () => reconciliation.current.current.required,
-    (startedForReview) => {
-      if (startedForReview) reconciliation.reviewArchived()
+    (version) => {
+      if (version) reconciliation.reviewArchived(version)
     },
   )
 }
@@ -157,17 +156,18 @@ interface ConfirmationContext {
 }
 
 async function confirmArchive(context: ConfirmationContext): Promise<void> {
-  const pending = beginArchive(context)
-  if (!pending) return
+  const started = beginArchive(context)
+  if (!started) return
   try {
-    const result = await executeArchive(pending, {
+    const result = await executeArchive(started.target, {
       archiveTask: (task) => archiveTask({ data: task }),
       restoreTask: (task) => unarchiveTask({ data: task }),
       archiveGroup: (automationId, tasks) =>
         archiveAutomationGroup({ data: { automationId, tasks } }),
       archiveSelection: (tasks) => archiveSelectedTasks({ data: tasks }),
     })
-    if (context.mountedRef.current) applyArchiveResult(context, pending, result)
+    if (context.mountedRef.current)
+      applyArchiveResult(context, started.target, result, started.marker)
   } catch (cause) {
     // A lost response may follow a write. Keep the target out of the retry path.
     context.setError(message(cause))
@@ -178,44 +178,53 @@ async function confirmArchive(context: ConfirmationContext): Promise<void> {
   }
 }
 
-function beginArchive(context: ConfirmationContext): ArchiveTarget | null {
+function beginArchive(
+  context: ConfirmationContext,
+): { target: ArchiveTarget; marker: string } | null {
   const { pending, busyRef, reconciliation } = context
   if (
     !pending ||
     !canStartWrite(reconciliation.current.current, busyRef.current)
   )
     return null
-  if (!markArchivePending(browserArchiveStorage())) {
+  const marker = markArchivePending(browserArchiveStorage())
+  if (!marker) {
     context.setPending(null)
     context.setError(ARCHIVE_STORAGE_LOCKED)
     reconciliation.require()
     return null
   }
   busyRef.current = true
+  reconciliation.marker.current = marker
   context.setBusy(true)
   context.setError(null)
   context.setPending(null)
-  return pending
+  return { target: pending, marker }
 }
 
 function applyArchiveResult(
   context: ConfirmationContext,
   target: ArchiveTarget,
   result: ArchiveResult,
+  marker: string,
 ) {
   context.onSnapshot(result.snapshot)
   context.setReceipt({ target, result })
   context.invalidate()
-  if (!settleArchiveResult(browserArchiveStorage(), result))
+  if (!settleArchiveResult(browserArchiveStorage(), result, marker))
     context.reconciliation.require()
+  else context.reconciliation.marker.current = null
 }
 
 function useArchiveReconciliation(
   busyRef: RefObject<boolean>,
-  setError: (error: string | null) => void,
+  setError: Dispatch<SetStateAction<string | null>>,
 ) {
   const [state, setState] = useState(requireReconciliation)
   const stateRef = useRef(state)
+  const markerRef = useRef<string | null>(null)
+  const acknowledgingRef = useRef(false)
+  const [acknowledging, setAcknowledging] = useState(false)
   const change = useCallback((next: Reconciliation) => {
     stateRef.current = next
     setState(next)
@@ -223,61 +232,38 @@ function useArchiveReconciliation(
   return {
     state,
     current: stateRef,
+    marker: markerRef,
     change,
-    canAcknowledge: canAcknowledge(state),
+    canAcknowledge: canAcknowledge(state) && !acknowledging,
     require: () => {
       change(requireReconciliation())
     },
-    reviewArchived: () => {
-      change(reviewArchived(stateRef.current))
+    reviewArchived: (version: string) => {
+      change(reviewArchived(stateRef.current, version))
     },
-    reviewActive: (snapshot: Snapshot) => {
-      change(reviewActive(stateRef.current, snapshot))
+    reviewActive: (snapshot: Snapshot, version: string | null) => {
+      change(reviewActive(stateRef.current, snapshot, version))
     },
-    acknowledge: () => {
-      if (busyRef.current || !canAcknowledge(stateRef.current)) return
-      if (!clearArchivePending(browserArchiveStorage())) {
-        setError(ARCHIVE_STORAGE_LOCKED)
-        return
-      }
-      change(acknowledge(stateRef.current))
-    },
+    acknowledge: () =>
+      acknowledgeArchive({
+        busy: busyRef,
+        acknowledging: acknowledgingRef,
+        state: stateRef,
+        marker: markerRef,
+        readServerBusy: () => getArchiveMutationStatus(),
+        storage: browserArchiveStorage,
+        setAcknowledging,
+        setError,
+        change,
+      }),
   }
-}
-
-function usePersistentArchiveLock(
-  change: (next: Reconciliation) => void,
-  setError: (error: string | null) => void,
-  setPending: (target: ArchiveTarget | null) => void,
-) {
-  const mountedRef = useRef(false)
-  const [storageChecked, setStorageChecked] = useState(false)
-  useEffect(() => {
-    mountedRef.current = true
-    const storage = browserArchiveStorage()
-    const restored = restoreArchiveLock(storage)
-    change(restored.reconciliation)
-    if (restored.storageLocked) setError(ARCHIVE_STORAGE_LOCKED)
-    setStorageChecked(true)
-    function onStorage(event: StorageEvent) {
-      if (event.key !== ARCHIVE_SENTINEL_KEY && event.key !== null) return
-      setPending(null)
-      change(requireReconciliation())
-    }
-    window.addEventListener('storage', onStorage)
-    return () => {
-      mountedRef.current = false
-      window.removeEventListener('storage', onStorage)
-    }
-  }, [change, setError, setPending])
-  return { mountedRef, storageChecked }
 }
 
 function useArchivedTasks(
   busyRef: RefObject<boolean>,
   setError: Dispatch<SetStateAction<string | null>>,
   requiresReview: () => boolean,
-  onLoaded: (startedForReview: boolean) => void,
+  onLoaded: (version: string | null) => void,
 ) {
   const [archived, setArchived] = useState<ExpectedTask[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -285,9 +271,12 @@ function useArchivedTasks(
     if (busyRef.current) return
     const startedForReview = requiresReview()
     try {
-      setArchived(await getArchivedTasks())
+      const before = startedForReview ? await getArchiveMutationStatus() : null
+      const tasks = await getArchivedTasks()
+      const after = startedForReview ? await getArchiveMutationStatus() : null
+      setArchived(tasks)
       setLoaded(true)
-      onLoaded(startedForReview)
+      onLoaded(verifiedReviewVersion(before, after))
     } catch (cause) {
       setError((previous) => previous ?? message(cause))
     }

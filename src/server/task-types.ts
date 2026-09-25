@@ -28,6 +28,11 @@ export interface ExpectedTask {
   pinned: boolean
 }
 
+export interface ArchiveMutationStatus {
+  busy: boolean
+  version: string
+}
+
 export type ArchiveStatus =
   'complete' | 'continue' | 'partial' | 'uncertain' | 'stale' | 'busy'
 

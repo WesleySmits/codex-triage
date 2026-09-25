@@ -96,6 +96,12 @@ function expected(task: CodexThread, pinned = false): ExpectedTask {
 }
 
 describe('local task state', () => {
+  it('uses a distinct mutation version for each server store instance', () => {
+    const first = store(new FakeClient()).archiveMutationStatus()
+    const second = store(new FakeClient()).archiveMutationStatus()
+    expect(first.version).not.toBe(second.version)
+  })
+
   it('accepts an exact automation ID and rejects title-only guesses', () => {
     expect(
       detectAutomationId('Automation: Example\nAutomation ID: job_12'),
@@ -287,8 +293,12 @@ describe('post-write refresh', () => {
     const task = thread(0)
     client.active = [task]
     const taskStore = store(client)
+    const before = taskStore.archiveMutationStatus()
     const archived = taskStore.setArchived(expected(task), true)
     await race.writeStarted.promise
+    const during = taskStore.archiveMutationStatus()
+    expect(during.busy).toBe(true)
+    expect(during.version).not.toBe(before.version)
 
     race.delayRead()
     const staleRead = taskStore.refresh()
@@ -298,6 +308,9 @@ describe('post-write refresh', () => {
 
     expect((await staleRead).tasks).toHaveLength(1)
     const result = await archived
+    const after = taskStore.archiveMutationStatus()
+    expect(after.busy).toBe(false)
+    expect(after.version).not.toBe(during.version)
     expect(result.status).toBe('complete')
     expect(result.snapshot.tasks).toEqual([])
     expect((await taskStore.snapshot()).tasks).toEqual([])
