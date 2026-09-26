@@ -7,10 +7,13 @@ import { DashboardMain } from './dashboard-main'
 import type { Language } from './i18n'
 import {
   activeProjects,
+  arrangeTasks,
   filterTasks,
   projectCounts,
   type ProjectFilter,
+  type TaskGrouping,
   tasksInView,
+  type TaskSort,
   type View,
 } from './task-filter'
 import { TaskSidebar } from './task-sidebar'
@@ -46,11 +49,8 @@ export function DashboardView({
   return (
     <>
       <DashboardHeader
-        language={language}
+        {...{ language, onLanguageChange, onRefresh, refreshing }}
         refreshedAt={snapshot.refreshedAt}
-        onLanguageChange={onLanguageChange}
-        onRefresh={onRefresh}
-        refreshing={refreshing}
       />
       <div className="layout">
         <TaskSidebar
@@ -67,21 +67,21 @@ export function DashboardView({
           automationCount={groups.length}
         />
         <DashboardMain
-          snapshot={snapshot}
-          language={language}
+          {...{ snapshot, language, analysis, screen, groups, archive }}
           view={filters.view}
           pinnedCount={filters.pinnedCount}
           refresh={refresh}
           tasks={filters.filtered}
+          project={filters.project}
+          sort={filters.sort}
+          grouping={filters.grouping}
+          onSort={filters.changeSort}
+          onGrouping={filters.changeGrouping}
           search={filters.search}
           onSearch={filters.changeSearch}
           currentPage={Math.min(filters.page, filters.pageCount)}
           pageCount={filters.pageCount}
           onPage={filters.setPage}
-          analysis={analysis}
-          screen={screen}
-          groups={groups}
-          archive={archive}
           allTasks={tasks}
         />
       </div>
@@ -106,13 +106,14 @@ function useDashboardFilters(snapshot: Snapshot, language: Language) {
   const [view, setView] = useState<View>('all')
   const [project, setProject] = useState<ProjectFilter>({ kind: 'all' })
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<TaskSort>('recent')
+  const [grouping, setGrouping] = useState<TaskGrouping>('none')
   const [page, setPage] = useState(1)
   const viewed = tasksInView(snapshot.tasks, view)
-  const filtered = filterTasks(
-    viewed,
-    project,
-    search,
-    language === 'nl' ? 'nl-NL' : 'en-US',
+  const filtered = arrangeTasks(
+    filterTasks(viewed, project, search, language === 'nl' ? 'nl-NL' : 'en-US'),
+    sort,
+    project.kind === 'all' ? grouping : 'none',
   )
   const pageCount = Math.max(1, Math.ceil(filtered.length / 25))
   function chooseView(next: View) {
@@ -127,11 +128,21 @@ function useDashboardFilters(snapshot: Snapshot, language: Language) {
     setSearch(next)
     setPage(1)
   }
+  function changeSort(next: TaskSort) {
+    setSort(next)
+    setPage(1)
+  }
+  function changeGrouping(next: TaskGrouping) {
+    setGrouping(next)
+    setPage(1)
+  }
   return {
     pinnedCount,
     view,
     project,
     search,
+    sort,
+    grouping,
     viewed,
     filtered,
     pageCount,
@@ -140,5 +151,7 @@ function useDashboardFilters(snapshot: Snapshot, language: Language) {
     chooseView,
     chooseProject,
     changeSearch,
+    changeSort,
+    changeGrouping,
   }
 }

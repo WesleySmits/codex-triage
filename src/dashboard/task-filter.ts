@@ -1,6 +1,8 @@
 import type { Snapshot, Task } from '../server/task-types'
 
 export type View = 'all' | 'pinned' | 'unpinned'
+export type TaskSort = 'recent' | 'created-newest' | 'created-oldest'
+export type TaskGrouping = 'none' | 'project'
 export type ProjectFilter =
   { kind: 'all' } | { kind: 'none' } | { kind: 'project'; id: string }
 
@@ -8,6 +10,41 @@ export function tasksInView(tasks: Task[], view: View): Task[] {
   if (view === 'pinned') return tasks.filter((task) => task.pinned)
   if (view === 'unpinned') return tasks.filter((task) => !task.pinned)
   return tasks
+}
+
+/** Sort without changing the snapshot, then keep each project together if requested. */
+export function arrangeTasks(
+  tasks: Task[],
+  sort: TaskSort,
+  grouping: TaskGrouping,
+): Task[] {
+  const timestamp = (task: Task) =>
+    sort === 'recent' ? task.updatedAt : task.createdAt
+  const direction = sort === 'created-oldest' ? 1 : -1
+  const ordered = [...tasks].sort(
+    (a, b) =>
+      direction * (timestamp(a) - timestamp(b)) || a.id.localeCompare(b.id),
+  )
+  if (grouping === 'none') return ordered
+  const projects = new Map<string | null, Task[]>()
+  for (const task of ordered) {
+    const group = projects.get(task.projectId) ?? []
+    group.push(task)
+    projects.set(task.projectId, group)
+  }
+  return [...projects.values()].flat()
+}
+
+export function projectGroups(
+  tasks: Task[],
+): { id: string | null; tasks: Task[] }[] {
+  const groups: { id: string | null; tasks: Task[] }[] = []
+  for (const task of tasks) {
+    const last = groups.at(-1)
+    if (last?.id === task.projectId) last.tasks.push(task)
+    else groups.push({ id: task.projectId, tasks: [task] })
+  }
+  return groups
 }
 
 export function projectCounts(tasks: Task[]): Map<string | null, number> {

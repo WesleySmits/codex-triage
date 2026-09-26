@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Task } from '../server/task-types'
-import { filterTasks, projectCounts, tasksInView } from './task-filter'
+import {
+  arrangeTasks,
+  filterTasks,
+  projectCounts,
+  projectGroups,
+  tasksInView,
+} from './task-filter'
 
 const tasks: Task[] = [
   {
@@ -90,5 +96,63 @@ describe('task filters', () => {
         (task) => task.id,
       ),
     ).toEqual(['projectless'])
+  })
+})
+
+describe('task arrangement', () => {
+  it('sorts by activity or creation date without mutating the snapshot', () => {
+    const base = tasks[0]
+    if (!base) throw new Error('Missing test task')
+    const items = [
+      { ...base, id: 'a', createdAt: 10, updatedAt: 20 },
+      { ...base, id: 'b', createdAt: 30, updatedAt: 15 },
+      { ...base, id: 'c', createdAt: 20, updatedAt: 25 },
+    ]
+    expect(
+      arrangeTasks(items, 'recent', 'none').map((task) => task.id),
+    ).toEqual(['c', 'a', 'b'])
+    expect(
+      arrangeTasks(items, 'created-newest', 'none').map((task) => task.id),
+    ).toEqual(['b', 'c', 'a'])
+    expect(
+      arrangeTasks(items, 'created-oldest', 'none').map((task) => task.id),
+    ).toEqual(['a', 'c', 'b'])
+    expect(items.map((task) => task.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('keeps filtered project groups contiguous through a page boundary', () => {
+    const base = tasks[0]
+    if (!base) throw new Error('Missing test task')
+    const items = Array.from({ length: 27 }, (_, index): Task => ({
+      ...base,
+      id: String(index),
+      projectId: index % 2 ? 'second' : 'first',
+      createdAt: 100 - index,
+      updatedAt: 100 - index,
+      pinned: index < 26,
+    }))
+    const pinned = tasksInView(items, 'pinned')
+    const ordered = arrangeTasks(
+      filterTasks(pinned, { kind: 'all' }, '', 'en-US'),
+      'created-newest',
+      'project',
+    )
+    expect(ordered).toHaveLength(26)
+    expect(new Set(ordered.map((task) => task.id)).size).toBe(26)
+    expect(
+      projectGroups(ordered.slice(0, 25)).map((group) => [
+        group.id,
+        group.tasks.length,
+      ]),
+    ).toEqual([
+      ['first', 13],
+      ['second', 12],
+    ])
+    expect(
+      projectGroups(ordered.slice(25, 50)).map((group) => [
+        group.id,
+        group.tasks.length,
+      ]),
+    ).toEqual([['second', 1]])
   })
 })
