@@ -47,6 +47,27 @@ export function projectGroups(
   return groups
 }
 
+/** Keep project groups intact, even when one group exceeds the usual page size. */
+export function taskPages(tasks: Task[], grouping: TaskGrouping): Task[][] {
+  if (grouping === 'none') {
+    const pages: Task[][] = []
+    for (let index = 0; index < tasks.length; index += 25)
+      pages.push(tasks.slice(index, index + 25))
+    return pages.length ? pages : [[]]
+  }
+  const pages: Task[][] = []
+  let current: Task[] = []
+  for (const group of projectGroups(tasks)) {
+    if (current.length && current.length + group.tasks.length > 25) {
+      pages.push(current)
+      current = []
+    }
+    current.push(...group.tasks)
+  }
+  if (current.length) pages.push(current)
+  return pages.length ? pages : [[]]
+}
+
 export function projectCounts(tasks: Task[]): Map<string | null, number> {
   const counts = new Map<string | null, number>()
   for (const task of tasks)

@@ -12,6 +12,7 @@ import {
   projectCounts,
   type ProjectFilter,
   type TaskGrouping,
+  taskPages,
   tasksInView,
   type TaskSort,
   type View,
@@ -72,6 +73,7 @@ export function DashboardView({
           pinnedCount={filters.pinnedCount}
           refresh={refresh}
           tasks={filters.filtered}
+          pages={filters.pages}
           project={filters.project}
           sort={filters.sort}
           grouping={filters.grouping}
@@ -115,7 +117,8 @@ function useDashboardFilters(snapshot: Snapshot, language: Language) {
     sort,
     project.kind === 'all' ? grouping : 'none',
   )
-  const pageCount = Math.max(1, Math.ceil(filtered.length / 25))
+  const pages = taskPages(filtered, project.kind === 'all' ? grouping : 'none')
+  const pageCount = pages.length
   function chooseView(next: View) {
     setView(next)
     setPage(1)
@@ -145,6 +148,7 @@ function useDashboardFilters(snapshot: Snapshot, language: Language) {
     grouping,
     viewed,
     filtered,
+    pages,
     pageCount,
     page,
     setPage,

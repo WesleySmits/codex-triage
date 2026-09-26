@@ -18,6 +18,7 @@ interface Props {
   pinnedCount: number
   refresh: { active: () => void; busy: boolean; failed: boolean }
   tasks: Task[]
+  pages: Task[][]
   project: ProjectFilter
   sort: TaskSort
   grouping: TaskGrouping
@@ -152,6 +153,7 @@ type MainListProps = Pick<
   | 'language'
   | 'analysis'
   | 'tasks'
+  | 'pages'
   | 'project'
   | 'sort'
   | 'grouping'

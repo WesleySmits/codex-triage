@@ -12,6 +12,7 @@ import type { ArchiveControls } from './use-archive-actions'
 
 interface Props {
   tasks: Task[]
+  pages: Task[][]
   project: ProjectFilter
   sort: TaskSort
   grouping: TaskGrouping
@@ -29,26 +30,21 @@ interface Props {
 
 export function TaskList(props: Props) {
   const t = translator(props.language)
-  const visible = props.tasks.slice(
-    (props.currentPage - 1) * 25,
-    props.currentPage * 25,
-  )
+  const visible = props.pages[props.currentPage - 1] ?? []
+  const preceding = props.pages
+    .slice(0, props.currentPage - 1)
+    .reduce((count, page) => count + page.length, 0)
   const grouped = props.project.kind === 'all' && props.grouping === 'project'
   return (
     <>
       <TaskListControls {...props} count={props.tasks.length} />
-      {props.sort !== 'recent' && (
-        <p className="sort-note">{t('createdFallback')}</p>
-      )}
+      <SortNote sort={props.sort} language={props.language} />
       <TaskRows {...props} grouped={grouped} tasks={visible} />
-      {props.tasks.length === 0 && (
-        <div className="empty-state">
-          <h2>{t('noTasks')}</h2>
-          <p>{t('adjustFilters')}</p>
-        </div>
-      )}
+      <EmptyState count={props.tasks.length} language={props.language} />
       <ListFooter
         count={props.tasks.length}
+        first={preceding + 1}
+        last={preceding + visible.length}
         language={props.language}
         currentPage={props.currentPage}
         pageCount={props.pageCount}
@@ -56,6 +52,28 @@ export function TaskList(props: Props) {
       />
       <p className="source-note">{t('sourceNote')}</p>
     </>
+  )
+}
+
+function SortNote({ sort, language }: Pick<Props, 'sort' | 'language'>) {
+  if (sort === 'recent') return null
+  return <p className="sort-note">{translator(language)('createdFallback')}</p>
+}
+
+function EmptyState({
+  count,
+  language,
+}: {
+  count: number
+  language: Language
+}) {
+  if (count) return null
+  const t = translator(language)
+  return (
+    <div className="empty-state">
+      <h2>{t('noTasks')}</h2>
+      <p>{t('adjustFilters')}</p>
+    </div>
   )
 }
 
@@ -121,11 +139,12 @@ function TaskListControls(
 
 function TaskRows({
   tasks,
+  sort,
   language,
   analysis,
   archive,
   grouped,
-}: Pick<Props, 'tasks' | 'language' | 'analysis' | 'archive'> & {
+}: Pick<Props, 'tasks' | 'sort' | 'language' | 'analysis' | 'archive'> & {
   grouped: boolean
 }) {
   return grouped ? (
@@ -133,7 +152,7 @@ function TaskRows({
       {projectGroups(tasks).map(({ id, tasks: groupTasks }) => (
         <ProjectGroup
           key={id ?? 'no-project'}
-          {...{ id, language, analysis, archive }}
+          {...{ id, sort, language, analysis, archive }}
           tasks={groupTasks}
         />
       ))}
@@ -141,6 +160,7 @@ function TaskRows({
   ) : (
     <TaskTable
       tasks={tasks}
+      sort={sort}
       language={language}
       analysis={analysis}
       archive={archive}
@@ -151,10 +171,11 @@ function TaskRows({
 function ProjectGroup({
   id,
   tasks,
+  sort,
   language,
   analysis,
   archive,
-}: Pick<Props, 'tasks' | 'language' | 'analysis' | 'archive'> & {
+}: Pick<Props, 'tasks' | 'sort' | 'language' | 'analysis' | 'archive'> & {
   id: string | null
 }) {
   const t = translator(language)
@@ -167,7 +188,10 @@ function ProjectGroup({
         <h2>{name}</h2>
         <span>{t('groupCount', { count: tasks.length })}</span>
       </div>
-      <TaskTable {...{ tasks, language, analysis, archive }} />
+      <TaskTable
+        {...{ tasks, sort, language, analysis, archive }}
+        caption={`${t('taskTable')} · ${name}`}
+      />
     </section>
   )
 }
@@ -175,19 +199,19 @@ function ProjectGroup({
 type FooterProps = Pick<
   Props,
   'language' | 'currentPage' | 'pageCount' | 'onPage'
-> & { count: number }
+> & { count: number; first: number; last: number }
 
 function ListFooter({
   count,
+  first,
+  last,
   language,
   currentPage,
   pageCount,
   onPage,
 }: FooterProps) {
   const t = translator(language)
-  const range = count
-    ? `${String((currentPage - 1) * 25 + 1)}–${String(Math.min(currentPage * 25, count))}`
-    : '0'
+  const range = count ? `${String(first)}–${String(last)}` : '0'
   return (
     <footer className="list-footer">
       <span>

@@ -2,23 +2,33 @@ import type { AnalysisView } from '../server/analysis-types'
 import type { Task } from '../server/task-types'
 import { AdviceValue } from './analysis-advice'
 import { type Language, translate, translator } from './i18n'
+import type { TaskSort } from './task-filter'
 import type { AnalysisControls } from './use-analysis'
 import type { ArchiveControls } from './use-archive-actions'
 
 interface Props {
   tasks: Task[]
+  sort: TaskSort
+  caption?: string
   language: Language
   analysis: AnalysisControls
   archive: ArchiveControls
 }
 
-export function TaskTable({ tasks, language, analysis, archive }: Props) {
+export function TaskTable({
+  tasks,
+  sort,
+  caption,
+  language,
+  analysis,
+  archive,
+}: Props) {
   const t = translator(language)
   const byId = new Map(analysis.views.map((view) => [view.taskId, view]))
   return (
     <div className="table-scroll">
       <table>
-        <caption className="sr-only">{t('taskTable')}</caption>
+        <caption className="sr-only">{caption ?? t('taskTable')}</caption>
         <thead>
           <tr>
             <th scope="col" className="selection-column">
@@ -26,7 +36,7 @@ export function TaskTable({ tasks, language, analysis, archive }: Props) {
             </th>
             <th scope="col">{t('task')}</th>
             <th scope="col">{t('project')}</th>
-            <th scope="col">{t('updated')}</th>
+            <th scope="col">{t(sort === 'recent' ? 'updated' : 'created')}</th>
             <th scope="col">{t('status')}</th>
             <th scope="col">{t('advice')}</th>
             <th scope="col">{t('archiveAction')}</th>
@@ -38,6 +48,7 @@ export function TaskTable({ tasks, language, analysis, archive }: Props) {
               key={task.id}
               task={task}
               language={language}
+              sort={sort}
               view={byId.get(task.id)}
               selected={analysis.selected.includes(task.id)}
               onToggle={analysis.toggle}
@@ -52,6 +63,7 @@ export function TaskTable({ tasks, language, analysis, archive }: Props) {
 
 interface RowProps {
   task: Task
+  sort: TaskSort
   language: Language
   view: AnalysisView | undefined
   selected: boolean
@@ -61,6 +73,7 @@ interface RowProps {
 
 function TaskRow({
   task,
+  sort,
   language,
   view,
   selected,
@@ -68,11 +81,7 @@ function TaskRow({
   archive,
 }: RowProps) {
   const t = translator(language)
-  const date = new Intl.DateTimeFormat(language === 'nl' ? 'nl-NL' : 'en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(task.updatedAt * 1000))
+  const date = taskDate(task, sort, language)
   return (
     <tr>
       <td className="selection-column">
@@ -100,7 +109,9 @@ function TaskRow({
         {projectLabel(task, language)}
       </td>
       <td className="date-cell">
-        <span className="mobile-label">{t('updated')} · </span>
+        <span className="mobile-label">
+          {t(sort === 'recent' ? 'updated' : 'created')} ·{' '}
+        </span>
         {date}
       </td>
       <td className="status-cell">
@@ -115,6 +126,16 @@ function TaskRow({
         <TaskArchiveButton task={task} archive={archive} language={language} />
       </td>
     </tr>
+  )
+}
+
+function taskDate(task: Task, sort: TaskSort, language: Language): string {
+  return new Intl.DateTimeFormat(language === 'nl' ? 'nl-NL' : 'en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(
+    new Date((sort === 'recent' ? task.updatedAt : task.createdAt) * 1000),
   )
 }
 

@@ -6,6 +6,7 @@ import {
   filterTasks,
   projectCounts,
   projectGroups,
+  taskPages,
   tasksInView,
 } from './task-filter'
 
@@ -120,7 +121,7 @@ describe('task arrangement', () => {
     expect(items.map((task) => task.id)).toEqual(['a', 'b', 'c'])
   })
 
-  it('keeps filtered project groups contiguous through a page boundary', () => {
+  it('paginates filtered tasks by complete project groups', () => {
     const base = tasks[0]
     if (!base) throw new Error('Missing test task')
     const items = Array.from({ length: 27 }, (_, index): Task => ({
@@ -139,20 +140,34 @@ describe('task arrangement', () => {
     )
     expect(ordered).toHaveLength(26)
     expect(new Set(ordered.map((task) => task.id)).size).toBe(26)
+    const pages = taskPages(ordered, 'project')
     expect(
-      projectGroups(ordered.slice(0, 25)).map((group) => [
-        group.id,
-        group.tasks.length,
-      ]),
-    ).toEqual([
-      ['first', 13],
-      ['second', 12],
+      pages.map((page) =>
+        projectGroups(page).map((group) => [group.id, group.tasks.length]),
+      ),
+    ).toEqual([[['first', 13]], [['second', 13]]])
+    expect(pages.flat().map((task) => task.id)).toEqual(
+      ordered.map((task) => task.id),
+    )
+    expect(taskPages(ordered, 'none').map((page) => page.length)).toEqual([
+      25, 1,
     ])
-    expect(
-      projectGroups(ordered.slice(25, 50)).map((group) => [
-        group.id,
-        group.tasks.length,
-      ]),
-    ).toEqual([['second', 1]])
+  })
+})
+
+describe('project pagination', () => {
+  it('gives a large project its own page and keeps projectless tasks together', () => {
+    const base = tasks[0]
+    if (!base) throw new Error('Missing test task')
+    const items = Array.from({ length: 35 }, (_, index): Task => ({
+      ...base,
+      id: String(index),
+      projectId: index < 30 ? 'large' : null,
+    }))
+    const pages = taskPages(items, 'project')
+    expect(pages.map((page) => page.length)).toEqual([30, 5])
+    expect(pages[1]?.every((task) => task.projectId === null)).toBe(true)
+    expect(pages.flat()).toEqual(items)
+    expect(taskPages([], 'project')).toEqual([[]])
   })
 })
