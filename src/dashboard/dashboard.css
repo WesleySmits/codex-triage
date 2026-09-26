@@ -264,13 +264,62 @@ select:focus-visible {
 }
 .toolbar {
   display: flex;
-  align-items: center;
-  gap: 16px;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
   margin: 22px 0 14px;
 }
 .search-field {
-  flex: 1;
+  flex: 1 1 230px;
   max-width: 490px;
+}
+.list-control {
+  display: grid;
+  gap: 5px;
+  color: #aaa;
+  font-size: 11px;
+}
+.list-control select {
+  min-height: 38px;
+  min-width: 160px;
+  border: 1px solid #3b3b3b;
+  border-radius: 0;
+  background: #0c0c0c;
+  color: #fff;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 12px;
+}
+.list-control select:disabled {
+  color: #888;
+}
+.sort-note {
+  color: #aaa;
+  font-size: 11px;
+  margin: -4px 0 12px;
+}
+.project-groups {
+  display: grid;
+  gap: 18px;
+}
+.project-group-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  border-top: 1px solid #444;
+  padding: 12px 3px;
+}
+.project-group-heading h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.project-group-heading span {
+  flex: none;
+  color: #888;
+  font-size: 11px;
 }
 .search-field input {
   width: 100%;
@@ -286,6 +335,7 @@ select:focus-visible {
 .result-count {
   font-size: 12px;
   color: #888;
+  margin-left: auto;
 }
 .table-scroll {
   overflow-x: auto;
@@ -714,6 +764,13 @@ th:nth-child(7) {
   }
   .toolbar {
     gap: 9px;
+  }
+  .list-control {
+    flex: 1 1 150px;
+  }
+  .list-control select {
+    width: 100%;
+    min-width: 0;
   }
   .table-scroll {
     overflow: visible;

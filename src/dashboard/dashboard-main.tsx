@@ -6,7 +6,7 @@ import { ArchivedList } from './archived-list'
 import type { AutomationGroup } from './automation-groups'
 import { AutomationList } from './automation-list'
 import { type Language, translator } from './i18n'
-import type { View } from './task-filter'
+import type { ProjectFilter, TaskGrouping, TaskSort, View } from './task-filter'
 import { TaskList } from './task-list'
 import type { AnalysisControls } from './use-analysis'
 import type { ArchiveControls } from './use-archive-actions'
@@ -18,6 +18,12 @@ interface Props {
   pinnedCount: number
   refresh: { active: () => void; busy: boolean; failed: boolean }
   tasks: Task[]
+  pages: Task[][]
+  project: ProjectFilter
+  sort: TaskSort
+  grouping: TaskGrouping
+  onSort: (sort: TaskSort) => void
+  onGrouping: (grouping: TaskGrouping) => void
   search: string
   onSearch: (value: string) => void
   currentPage: number
@@ -30,60 +36,28 @@ interface Props {
   allTasks: Task[]
 }
 
-export function DashboardMain({
-  snapshot,
-  language,
-  view,
-  pinnedCount,
-  refresh,
-  tasks,
-  search,
-  onSearch,
-  currentPage,
-  pageCount,
-  onPage,
-  analysis,
-  screen,
-  groups,
-  archive,
-  allTasks,
-}: Props) {
+export function DashboardMain(props: Props) {
   return (
     <main id="task-list" className="main-content" tabIndex={-1}>
       <MainHeading
-        screen={screen}
-        view={view}
-        language={language}
-        taskCount={snapshot.tasks.length}
-        pinnedCount={pinnedCount}
+        screen={props.screen}
+        view={props.view}
+        language={props.language}
+        taskCount={props.snapshot.tasks.length}
+        pinnedCount={props.pinnedCount}
       />
       <MainNotices
-        snapshot={snapshot}
-        refreshFailed={refresh.failed}
-        language={language}
+        snapshot={props.snapshot}
+        refreshFailed={props.refresh.failed}
+        language={props.language}
       />
       <ArchivePanel
-        archive={archive}
-        language={language}
-        onRefreshActive={refresh.active}
-        refreshing={refresh.busy}
+        archive={props.archive}
+        language={props.language}
+        onRefreshActive={props.refresh.active}
+        refreshing={props.refresh.busy}
       />
-      <MainBody
-        {...{
-          screen,
-          search,
-          onSearch,
-          groups,
-          language,
-          analysis,
-          tasks,
-          currentPage,
-          pageCount,
-          onPage,
-          archive,
-          allTasks,
-        }}
-      />
+      <MainBody {...props} />
     </main>
   )
 }
@@ -179,6 +153,12 @@ type MainListProps = Pick<
   | 'language'
   | 'analysis'
   | 'tasks'
+  | 'pages'
+  | 'project'
+  | 'sort'
+  | 'grouping'
+  | 'onSort'
+  | 'onGrouping'
   | 'currentPage'
   | 'pageCount'
   | 'onPage'
@@ -186,54 +166,31 @@ type MainListProps = Pick<
   | 'allTasks'
 >
 
-function MainList({
-  screen,
-  search,
-  onSearch,
-  groups,
-  language,
-  analysis,
-  tasks,
-  currentPage,
-  pageCount,
-  onPage,
-  archive,
-  allTasks,
-}: MainListProps) {
-  const t = translator(language)
-  return screen === 'automations' ? (
+function MainList(props: MainListProps) {
+  const t = translator(props.language)
+  return props.screen === 'automations' ? (
     <>
       <label className="search-field automation-search">
         <span className="sr-only">{t('search')}</span>
         <input
           type="search"
-          value={search}
+          value={props.search}
           placeholder={t('search')}
           onChange={(event) => {
-            onSearch(event.target.value)
+            props.onSearch(event.target.value)
           }}
         />
       </label>
       <AutomationList
-        groups={groups}
-        language={language}
-        analysis={analysis}
-        archive={archive}
-        allTasks={allTasks}
+        groups={props.groups}
+        language={props.language}
+        analysis={props.analysis}
+        archive={props.archive}
+        allTasks={props.allTasks}
       />
     </>
   ) : (
-    <TaskList
-      tasks={tasks}
-      language={language}
-      search={search}
-      onSearch={onSearch}
-      currentPage={currentPage}
-      pageCount={pageCount}
-      onPage={onPage}
-      analysis={analysis}
-      archive={archive}
-    />
+    <TaskList {...props} />
   )
 }
 

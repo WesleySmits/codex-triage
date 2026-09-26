@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Task } from '../server/task-types'
-import { filterTasks, projectCounts, tasksInView } from './task-filter'
+import {
+  arrangeTasks,
+  filterTasks,
+  projectCounts,
+  projectGroups,
+  taskPages,
+  tasksInView,
+} from './task-filter'
 
 const tasks: Task[] = [
   {
@@ -90,5 +97,77 @@ describe('task filters', () => {
         (task) => task.id,
       ),
     ).toEqual(['projectless'])
+  })
+})
+
+describe('task arrangement', () => {
+  it('sorts by activity or creation date without mutating the snapshot', () => {
+    const base = tasks[0]
+    if (!base) throw new Error('Missing test task')
+    const items = [
+      { ...base, id: 'a', createdAt: 10, updatedAt: 20 },
+      { ...base, id: 'b', createdAt: 30, updatedAt: 15 },
+      { ...base, id: 'c', createdAt: 20, updatedAt: 25 },
+    ]
+    expect(
+      arrangeTasks(items, 'recent', 'none').map((task) => task.id),
+    ).toEqual(['c', 'a', 'b'])
+    expect(
+      arrangeTasks(items, 'created-newest', 'none').map((task) => task.id),
+    ).toEqual(['b', 'c', 'a'])
+    expect(
+      arrangeTasks(items, 'created-oldest', 'none').map((task) => task.id),
+    ).toEqual(['a', 'c', 'b'])
+    expect(items.map((task) => task.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('paginates filtered tasks by complete project groups', () => {
+    const base = tasks[0]
+    if (!base) throw new Error('Missing test task')
+    const items = Array.from({ length: 27 }, (_, index): Task => ({
+      ...base,
+      id: String(index),
+      projectId: index % 2 ? 'second' : 'first',
+      createdAt: 100 - index,
+      updatedAt: 100 - index,
+      pinned: index < 26,
+    }))
+    const pinned = tasksInView(items, 'pinned')
+    const ordered = arrangeTasks(
+      filterTasks(pinned, { kind: 'all' }, '', 'en-US'),
+      'created-newest',
+      'project',
+    )
+    expect(ordered).toHaveLength(26)
+    expect(new Set(ordered.map((task) => task.id)).size).toBe(26)
+    const pages = taskPages(ordered, 'project')
+    expect(
+      pages.map((page) =>
+        projectGroups(page).map((group) => [group.id, group.tasks.length]),
+      ),
+    ).toEqual([[['first', 13]], [['second', 13]]])
+    expect(pages.flat().map((task) => task.id)).toEqual(
+      ordered.map((task) => task.id),
+    )
+    expect(taskPages(ordered, 'none').map((page) => page.length)).toEqual([
+      25, 1,
+    ])
+  })
+})
+
+describe('project pagination', () => {
+  it('gives a large project its own page and keeps projectless tasks together', () => {
+    const base = tasks[0]
+    if (!base) throw new Error('Missing test task')
+    const items = Array.from({ length: 35 }, (_, index): Task => ({
+      ...base,
+      id: String(index),
+      projectId: index < 30 ? 'large' : null,
+    }))
+    const pages = taskPages(items, 'project')
+    expect(pages.map((page) => page.length)).toEqual([30, 5])
+    expect(pages[1]?.every((task) => task.projectId === null)).toBe(true)
+    expect(pages.flat()).toEqual(items)
+    expect(taskPages([], 'project')).toEqual([[]])
   })
 })

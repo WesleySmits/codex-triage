@@ -1,5 +1,8 @@
+import { taskViewMessages } from './task-view-messages'
+
 const messages = {
   en: {
+    ...taskViewMessages.en,
     skip: 'Skip to task list',
     language: 'Language',
     refreshed: 'Synced at {time}',
@@ -46,10 +49,6 @@ const messages = {
     refreshFailed: 'Could not refresh the task list.',
     search: 'Search tasks or projects',
     results: '{count} results',
-    taskTable: 'Active Codex tasks',
-    task: 'Task',
-    project: 'Project',
-    updated: 'Updated',
     status: 'Status',
     pinnedTask: 'Pinned',
     regularTask: 'Active',
@@ -140,6 +139,7 @@ const messages = {
     restoreTask: 'Restore',
   },
   nl: {
+    ...taskViewMessages.nl,
     skip: 'Ga naar takenlijst',
     language: 'Taal',
     refreshed: 'Gesynchroniseerd om {time}',
@@ -187,10 +187,6 @@ const messages = {
     refreshFailed: 'De takenlijst kon niet worden ververst.',
     search: 'Zoek taak of project',
     results: '{count} resultaten',
-    taskTable: 'Actieve Codex-taken',
-    task: 'Taak',
-    project: 'Project',
-    updated: 'Bijgewerkt',
     status: 'Status',
     pinnedTask: 'Vastgepind',
     regularTask: 'Actief',
